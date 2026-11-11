@@ -80,7 +80,7 @@ public sealed class LauncherSettings
     public bool AskPermissionOnce { get; set; }
     public bool NotifyUpdates { get; set; } = true;
     public bool IncludePreReleases { get; set; } = true;
-    public string GitHubRepo { get; set; } = "ChristianRobecchi/REA";
+    public string GitHubRepo { get; set; } = "chrisquire80/REA";
     public bool CheckCloudUpdatesOnStartup { get; set; } = true;
     public DateTime? LastCloudCheckUtc { get; set; }
     public string Appearance { get; set; } = "Dark";
