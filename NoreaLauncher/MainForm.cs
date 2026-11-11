@@ -51,9 +51,11 @@ public sealed class MainForm : Form
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int sz);
 
+    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.0");
+
     public MainForm()
     {
-        Text = "NOREA Launcher";
+        Text = $"NOREA Launcher {LauncherVersion}";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
         FormBorderStyle = FormBorderStyle.None;
         MinimumSize = new Size(960, 620);
@@ -91,7 +93,7 @@ public sealed class MainForm : Form
         _trayIcon = new NotifyIcon
         {
             Icon = Icon,
-            Text = "NOREA Launcher — App Suite",
+            Text = $"NOREA Launcher {LauncherVersion}",
             Visible = true,
             ContextMenuStrip = _trayMenu,
         };
@@ -215,7 +217,7 @@ public sealed class MainForm : Form
             g.DrawLine(border, sepX, 12, sepX, 31);
 
             using (var suiteFont = new Font("Consolas", 8.2f, FontStyle.Regular))
-                TextRenderer.DrawText(g, "APP SUITE", suiteFont, new Point(sepX + 12, 15), _theme.TextSecondary, TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g, $"APP SUITE · {LauncherVersion}", suiteFont, new Point(sepX + 12, 15), _theme.TextSecondary, TextFormatFlags.NoPadding);
 
             // Pulsanti finestra
             int w = _titleBar.Width, h = _titleBar.Height;
