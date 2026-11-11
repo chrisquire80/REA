@@ -98,4 +98,41 @@ public class TextTransformAndDiffTests
         Assert.Equal(DiffLineType.Unchanged, diff[3].Type); // line4
         Assert.Equal(DiffLineType.Inserted, diff[4].Type);  // line5_added
     }
+
+    [Fact]
+    public void GitGutter_ParseDiffOutput_ParsesUnifiedDiffHunksCorrectly()
+    {
+        string diffOutput = @"diff --git a/test.txt b/test.txt
+index 123..456 100644
+--- a/test.txt
++++ b/test.txt
+@@ -10,0 +11,3 @@
++added 1
++added 2
++added 3
+@@ -20,2 +23,2 @@
+-old line
++mod line
+@@ -35,2 +37,0 @@
+-del 1
+-del 2
+";
+        var hunks = GitGutter.ParseDiffOutput(diffOutput);
+
+        Assert.Equal(3, hunks.Count);
+
+        // Hunk 1: added at line 10 (0-based)
+        Assert.Equal(10, hunks[0].Line);
+        Assert.Equal(GitLineStatus.Added, hunks[0].Status);
+        Assert.Equal(3, hunks[0].Count);
+
+        // Hunk 2: modified at line 22 (0-based)
+        Assert.Equal(22, hunks[1].Line);
+        Assert.Equal(GitLineStatus.Modified, hunks[1].Status);
+        Assert.Equal(2, hunks[1].Count);
+
+        // Hunk 3: deleted at line 36 (0-based)
+        Assert.Equal(36, hunks[2].Line);
+        Assert.Equal(GitLineStatus.Deleted, hunks[2].Status);
+    }
 }

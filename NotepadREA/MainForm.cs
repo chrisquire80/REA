@@ -12,6 +12,8 @@ public sealed class MainForm : Form
     readonly Settings _settings = Settings.Load();
     readonly TabStrip _strip = new();
     readonly Panel _host = new() { Dock = DockStyle.Fill };
+    readonly SplitContainer _mainSplit = new() { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterWidth = 6, Panel2Collapsed = true };
+    readonly TerminalPanel _terminal = new();
     readonly MiniMap _mini = new();
     readonly FindPanel _findPanel;
     readonly MenuStrip _menu = new() { RenderMode = ToolStripRenderMode.ManagerRenderMode, Padding = new Padding(4, 2, 0, 2) };
@@ -60,8 +62,12 @@ public sealed class MainForm : Form
         _status.Items.AddRange([_stLang, _stLen, _stPos, _stEol, _stEnc, _stIns]);
         foreach (ToolStripStatusLabel l in _status.Items) l.Padding = new Padding(8, 0, 8, 0);
 
+        _mainSplit.Panel1.Controls.Add(_host);
+        _mainSplit.Panel2.Controls.Add(_terminal);
+        _terminal.CloseRequested += (_, _) => ToggleTerminal();
+
         // Ordine di aggiunta = ordine inverso di aggancio (l'ultimo aggiunto è il più esterno)
-        Controls.Add(_host);
+        Controls.Add(_mainSplit);
         Controls.Add(_mini);
         Controls.Add(_findPanel);
         Controls.Add(_strip);
@@ -87,6 +93,16 @@ public sealed class MainForm : Form
         Load += (_, _) => RestoreAndOpenArgs();
         HandleCreated += (_, _) => CurrentTheme.ApplyTitleBar(this);
         DpiChanged += (_, _) => RefreshToolbarIcons();
+
+        KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.F12 || (e.Control && (e.KeyCode == Keys.Oemtilde || e.KeyCode == Keys.Oem5 || (int)e.KeyCode == 192)))
+            {
+                ToggleTerminal();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        };
     }
 
     // =====================================================================
@@ -262,6 +278,8 @@ public sealed class MainForm : Form
             Item("Comprimi tutti i livelli", () => Current?.Editor.FoldAll(FoldAction.Contract), Keys.Alt | Keys.D0),
             Item("Espandi tutti i livelli", () => Current?.Editor.FoldAll(FoldAction.Expand), Keys.Alt | Keys.Shift | Keys.D0),
             Sep(),
+            Item("Terminale incorporato", ToggleTerminal, Keys.F12, "F12 / Ctrl+`"),
+            Sep(),
             Item("Scheda successiva", () => CycleTab(1), Keys.Control | Keys.Tab),
             Item("Scheda precedente", () => CycleTab(-1), Keys.Control | Keys.Shift | Keys.Tab));
 
@@ -308,6 +326,7 @@ public sealed class MainForm : Form
             Sub("Maiuscole / Minuscole",
                 Item("Iniziali Maiuscole (Title Case)", () => TransformSelectionOrAll(TextTransformTools.ToTitleCase))),
             Sep(),
+            Item("Ispezione Esadecimale (Hex View)...", OpenHexView, Keys.Control | Keys.Alt | Keys.H),
             Item("Hash MD5 / SHA-256 della selezione o del documento", ShowHashes),
             Item("Statistiche documento", ShowSummary));
 
@@ -988,6 +1007,8 @@ public sealed class MainForm : Form
         foreach (var d in Docs) { d.SetLanguage(d.Language, t, _settings.FontName, _settings.FontSize); ApplyViewSettings(d); }
         AttachMinimap();
         RefreshToolbarIcons();
+        _terminal.ApplyTheme(t);
+        _mainSplit.BackColor = t.UiBorder;
         _menu.Invalidate(true);
         _status.Invalidate(true);
     }
@@ -1049,6 +1070,15 @@ public sealed class MainForm : Form
         UpdateTitle();
         UpdateStatus();
         cur?.Editor.Focus();
+
+        if (!_mainSplit.Panel2Collapsed && cur?.FilePath != null)
+        {
+            _terminal.SetWorkingDirectory(Path.GetDirectoryName(cur.FilePath)!);
+        }
+        if (cur?.FilePath != null)
+        {
+            _ = GitGutter.UpdateGutterAsync(cur.Editor, cur.FilePath);
+        }
     }
 
     void UpdateTitle()
@@ -1239,6 +1269,44 @@ public sealed class MainForm : Form
     {
         using var diff = new DiffForm(Docs.ToList(), Current, CurrentTheme);
         diff.ShowDialog(this);
+    }
+
+    void ToggleTerminal()
+    {
+        _mainSplit.Panel2Collapsed = !_mainSplit.Panel2Collapsed;
+        if (!_mainSplit.Panel2Collapsed)
+        {
+            if (_mainSplit.SplitterDistance > _mainSplit.Height - 120 || _mainSplit.SplitterDistance < 100)
+            {
+                _mainSplit.SplitterDistance = Math.Max(150, (int)(_mainSplit.Height * 0.68));
+            }
+            string dir = Current?.FilePath != null ? Path.GetDirectoryName(Current.FilePath)! : Directory.GetCurrentDirectory();
+            _terminal.StartShell(dir);
+            _terminal.SetWorkingDirectory(dir);
+            _terminal.FocusInput();
+        }
+        else
+        {
+            Current?.Editor.Focus();
+        }
+    }
+
+    void OpenHexView()
+    {
+        if (Current == null) return;
+        byte[] data;
+        string title = Current.DisplayName;
+        if (!string.IsNullOrEmpty(Current.FilePath) && File.Exists(Current.FilePath) && !Current.IsModified)
+        {
+            try { data = File.ReadAllBytes(Current.FilePath); }
+            catch { data = TextCodec.Encode(Current.Editor.Text, Current.Encoding); }
+        }
+        else
+        {
+            data = TextCodec.Encode(Current.Editor.Text, Current.Encoding);
+        }
+        using var hexForm = new HexForm(title, data, CurrentTheme);
+        hexForm.ShowDialog(this);
     }
 
     void JoinLines()

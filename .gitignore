@@ -19,3 +19,4 @@ analysis/*.err
 
 *.zip
 test_portable_folder/
+norea_portable/

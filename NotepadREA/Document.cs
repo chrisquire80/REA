@@ -143,6 +143,9 @@ public sealed class Document : UserControl
         sep.Mask = 0;
         e.Margins.Left = 6; // respiro tra separatore e testo
 
+        // Margine 4: Indicatori Git diff (aggiunte, modifiche, rimozioni)
+        GitGutter.ConfigureEditor(e, _theme);
+
         // Evidenziazione automatica delle occorrenze della parola selezionata
         var ind = e.Indicators[SmartIndicator];
         ind.Style = IndicatorStyle.RoundBox;
@@ -324,6 +327,7 @@ public sealed class Document : UserControl
         LastWriteUtc = File.GetLastWriteTimeUtc(path);
         _forcedDirty = false;
         MissingAcknowledged = false;
+        _ = GitGutter.UpdateGutterAsync(Editor, FilePath);
 
         bool isLarge = bytes.Length > 2_000_000;
         Editor.ScrollWidthTracking = !isLarge;
@@ -423,6 +427,7 @@ public sealed class Document : UserControl
         LastWriteUtc = File.GetLastWriteTimeUtc(path);
         _forcedDirty = false;
         MissingAcknowledged = false;
+        _ = GitGutter.UpdateGutterAsync(Editor, FilePath);
         HasMixedEol = TextCodec.HasMixedEol(Editor.Text);
         Editor.SetSavePoint();
         if (langChange) SetLanguage(Languages.FromPath(path), theme, font, size);
