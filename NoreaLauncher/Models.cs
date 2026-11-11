@@ -26,7 +26,7 @@ public sealed class AppEntry
     public string Prefix { get; set; } = "";
     public string Suffix { get; set; } = "REA";
     public string AuthorBadge { get; set; } = "BY NOREA";
-    public string Version { get; set; } = "v2.0.0";
+    public string Version { get; set; } = "v2.2.0";
     public string Runtime { get; set; } = "Scintilla/Lexilla · .NET 10";
     public string Tagline { get; set; } = "";
     public string Description { get; set; } = "";
@@ -428,6 +428,18 @@ public static class CatalogService
             app.LastUpdatedUtc = fi.LastWriteTimeUtc;
             app.LastUpdatedText = fi.LastWriteTime.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("it-IT"));
             app.IsPlanned = false;
+            try
+            {
+                var fvi = System.Diagnostics.FileVersionInfo.GetVersionInfo(refFile);
+                var rawVer = !string.IsNullOrWhiteSpace(fvi.ProductVersion) ? fvi.ProductVersion : fvi.FileVersion;
+                if (!string.IsNullOrWhiteSpace(rawVer))
+                {
+                    var clean = rawVer.Split('+')[0].Trim();
+                    if (!string.IsNullOrEmpty(clean))
+                        app.Version = "v" + clean.TrimStart('v', 'V');
+                }
+            }
+            catch { }
         }
         else if (app.ResolvedProjectDir != null)
         {
@@ -462,7 +474,7 @@ public static class CatalogService
     [
         new()
         {
-            Id = "NotepadREA", Prefix = "Notepad", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v2.0.0",
+            Id = "NotepadREA", Prefix = "Notepad", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v2.2.0",
             Runtime = "Scintilla/Lexilla · .NET 10",
             Tagline = "Editor di testo e codice Scintilla/Lexilla",
             Description = "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",
