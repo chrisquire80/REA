@@ -399,6 +399,11 @@ public static class CatalogService
             if (Directory.Exists(relDir))
                 distExe = Directory.GetFiles(relDir, app.Id + ".exe", SearchOption.AllDirectories).FirstOrDefault();
         }
+        if (distExe is null)
+        {
+            var beside = Path.Combine(AppContext.BaseDirectory, app.Id + ".exe");
+            if (File.Exists(beside)) distExe = beside;
+        }
         app.DistExePath = distExe;
 
         var localPrograms = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
@@ -407,6 +412,8 @@ public static class CatalogService
             Path.Combine(localPrograms, app.Id, app.Id + ".exe"),
             Path.Combine(settings.InstallFolder, app.Id, app.Id + ".exe"),
             Path.Combine(settings.InstallFolder, app.Id + ".exe"),
+            Path.Combine(AppContext.BaseDirectory, app.Id + ".exe"),
+            Path.Combine(AppContext.BaseDirectory, "dist", app.Id + ".exe"),
         ];
         app.InstalledExePath = candidates.FirstOrDefault(File.Exists);
 

@@ -16,3 +16,6 @@ analysis/*.err
 # Temporanei
 *.tmp
 *.log
+
+*.zip
+test_portable_folder/
