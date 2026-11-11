@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+dist/
+artifacts/
+TestResults/
+*.user
+.vs/
+
+# Materiale di analisi / terze parti (non redistribuire)
+extracted/
+notepad/
+repo/
+analysis/*.err
+
+# Temporanei
+*.tmp
+*.log

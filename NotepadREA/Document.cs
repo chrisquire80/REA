@@ -1,0 +1,403 @@
+using System.Text;
+using ScintillaNET;
+
+namespace NotepadREA;
+
+public enum FileEncoding { Ansi, Utf8, Utf8Bom, Utf16Le, Utf16Be }
+
+/// <summary>Un documento aperto: il suo editor Scintilla e i metadati del file.</summary>
+public sealed class Document : UserControl
+{
+    public const int BookmarkMarker = 24;
+    public const int SmartIndicator = 9;
+    const int BookmarkMargin = 1, FoldMargin = 2, SeparatorMargin = 3;
+
+    static int _untitledCounter;
+
+    public Scintilla Editor { get; }
+    public string? FilePath { get; private set; }
+    public FileEncoding Encoding { get; set; } = FileEncoding.Utf8;
+    public Language Language { get; private set; } = Languages.Normal;
+    public DateTime LastWriteUtc { get; private set; }
+    public string DisplayName { get; private set; }
+
+    /// <summary>File di backup (sessione/recupero) associato a questo buffer.</summary>
+    public string? BackupFile { get; set; }
+    /// <summary>Il contenuto è cambiato dopo l'ultimo backup.</summary>
+    public bool DirtySinceBackup { get; set; }
+    /// <summary>L'utente ha già risposto all'avviso "file eliminato".</summary>
+    public bool MissingAcknowledged { get; set; }
+
+    bool _forcedDirty;
+    Theme _theme = Theme.Light;
+
+    public event EventHandler? StateChanged;
+
+    public Document()
+    {
+        DisplayName = $"nuovo {++_untitledCounter}";
+        Dock = DockStyle.Fill;
+        Editor = new Scintilla { Dock = DockStyle.Fill, BorderStyle = ScintillaNET.BorderStyle.None };
+        Controls.Add(Editor);
+        ConfigureEditor();
+        Editor.SavePointLeft += (_, _) => RaiseState();
+        Editor.SavePointReached += (_, _) => RaiseState();
+        Editor.Insert += (_, _) => DirtySinceBackup = true;
+        Editor.Delete += (_, _) => DirtySinceBackup = true;
+    }
+
+    public bool IsModified => Editor.Modified || _forcedDirty;
+    public bool IsReadOnly => Editor.ReadOnly;
+    public bool IsUntitledAndEmpty => FilePath is null && !IsModified && Editor.TextLength == 0;
+    public string DisplayTitle => DisplayName + (Editor.ReadOnly ? " 🔒" : "");
+    public string ToolTip => FilePath ?? DisplayName;
+
+    public void SetUntitledName(string name)
+    {
+        DisplayName = name;
+        if (name.StartsWith("nuovo ") && int.TryParse(name[6..], out int n)) _untitledCounter = Math.Max(_untitledCounter, n);
+        RaiseState();
+    }
+
+    /// <summary>Segna il buffer come "da salvare" senza toccare il testo (es. file eliminato dal disco).</summary>
+    public void MarkDirty() { _forcedDirty = true; RaiseState(); }
+
+    public void RaiseState() => StateChanged?.Invoke(this, EventArgs.Empty);
+
+    void ConfigureEditor()
+    {
+        var e = Editor;
+        e.EolMode = Eol.CrLf;
+        e.TabWidth = 4;
+        e.UseTabs = true;
+        e.IndentationGuides = IndentView.LookBoth;
+        e.MultipleSelection = true;              // Ctrl+clic = cursori multipli
+        e.AdditionalSelectionTyping = true;
+        e.MouseSelectionRectangularSwitch = true; // Alt+trascina = selezione a colonna
+        e.VirtualSpaceOptions = VirtualSpace.RectangularSelection;
+        e.ScrollWidthTracking = true;
+        e.ScrollWidth = 1;
+        e.CaretLineVisibleAlways = true;
+        e.CaretWidth = 2;
+
+        // Alt+Su/Giù: sposta le righe selezionate
+        e.AssignCmdKey(Keys.Alt | Keys.Up, Command.MoveSelectedLinesUp);
+        e.AssignCmdKey(Keys.Alt | Keys.Down, Command.MoveSelectedLinesDown);
+
+        // Margine 0: numeri di riga
+        e.Margins[0].Type = MarginType.Number;
+        e.Margins[0].Width = 40;
+
+        // Margine 1: segnalibri
+        var bm = e.Margins[BookmarkMargin];
+        bm.Type = MarginType.Symbol;
+        bm.Width = 14;
+        bm.Sensitive = true;
+        bm.Mask = 1u << BookmarkMarker;
+        var marker = e.Markers[BookmarkMarker];
+        marker.Symbol = MarkerSymbol.Bookmark;
+        marker.SetBackColor(Color.FromArgb(0, 120, 215));
+        marker.SetForeColor(Color.FromArgb(0, 80, 160));
+
+        // Margine 2: piegatura del codice (+ / -)
+        var fm = e.Margins[FoldMargin];
+        fm.Type = MarginType.Symbol;
+        fm.Mask = Marker.MaskFolders;
+        fm.Sensitive = true;
+        fm.Width = 14;
+        e.Markers[Marker.Folder].Symbol = MarkerSymbol.BoxPlus;
+        e.Markers[Marker.FolderOpen].Symbol = MarkerSymbol.BoxMinus;
+        e.Markers[Marker.FolderEnd].Symbol = MarkerSymbol.BoxPlusConnected;
+        e.Markers[Marker.FolderMidTail].Symbol = MarkerSymbol.TCorner;
+        e.Markers[Marker.FolderOpenMid].Symbol = MarkerSymbol.BoxMinusConnected;
+        e.Markers[Marker.FolderSub].Symbol = MarkerSymbol.VLine;
+        e.Markers[Marker.FolderTail].Symbol = MarkerSymbol.LCorner;
+        e.AutomaticFold = AutomaticFold.Show | AutomaticFold.Click | AutomaticFold.Change;
+
+        // Margine 3: sottile linea verticale tra gutter e testo
+        var sep = e.Margins[SeparatorMargin];
+        sep.Type = MarginType.Color;
+        sep.Width = 1;
+        sep.Mask = 0;
+        e.Margins.Left = 6; // respiro tra separatore e testo
+
+        // Evidenziazione automatica delle occorrenze della parola selezionata
+        var ind = e.Indicators[SmartIndicator];
+        ind.Style = IndicatorStyle.RoundBox;
+        ind.Under = true;
+        ind.Alpha = 90;
+        ind.OutlineAlpha = 160;
+
+        e.MarginClick += (_, a) =>
+        {
+            if (a.Margin == BookmarkMargin) ToggleBookmark(e.LineFromPosition(a.Position));
+        };
+        e.TextChanged += (_, _) => { _lastSmart = null; UpdateLineNumberWidth(); };
+        e.UpdateUI += (_, a) =>
+        {
+            if ((a.Change & UpdateChange.Selection) == 0) return;
+            HighlightBraces();
+            SmartHighlight();
+        };
+    }
+
+    public void ApplyTheme(Theme theme)
+    {
+        _theme = theme;
+        var e = Editor;
+        e.Margins[SeparatorMargin].BackColor = theme.UiBorder;
+        e.Indicators[SmartIndicator].ForeColor = theme.SmartHighlight;
+        e.Indicators[FindPanel.MarkIndicator].ForeColor = theme.IsDark ? Color.FromArgb(255, 170, 0) : Color.FromArgb(255, 200, 0);
+    }
+
+    void UpdateLineNumberWidth()
+    {
+        if (Editor.Margins[0].Width == 0) return;
+        int digits = Math.Max(3, Editor.Lines.Count.ToString().Length);
+        int w = Editor.TextWidth(Style.LineNumber, new string('9', digits + 1));
+        if (Editor.Margins[0].Width != w) Editor.Margins[0].Width = w;
+    }
+
+    public void ShowLineNumbers(bool show)
+    {
+        Editor.Margins[0].Width = show ? 1 : 0;
+        if (show) UpdateLineNumberWidth();
+    }
+
+    void HighlightBraces()
+    {
+        int pos = Editor.CurrentPosition;
+        int brace = -1;
+        if (pos > 0 && IsBrace(Editor.GetCharAt(pos - 1))) brace = pos - 1;
+        else if (IsBrace(Editor.GetCharAt(pos))) brace = pos;
+        if (brace < 0) { Editor.BraceHighlight(Scintilla.InvalidPosition, Scintilla.InvalidPosition); return; }
+        int match = Editor.BraceMatch(brace);
+        if (match == Scintilla.InvalidPosition) Editor.BraceBadLight(brace);
+        else Editor.BraceHighlight(brace, match);
+    }
+
+    static bool IsBrace(int c) => c is '(' or ')' or '[' or ']' or '{' or '}';
+
+    bool _smartHighlight = true;
+    string? _lastSmart;
+    int _lastSmartPos = -1;
+
+    public bool SmartHighlightEnabled
+    {
+        get => _smartHighlight;
+        set
+        {
+            if (_smartHighlight == value) return;
+            _smartHighlight = value;
+            _lastSmart = null;
+            _lastSmartPos = -1;
+            SmartHighlight();
+        }
+    }
+
+    /// <summary>Se la selezione è una parola intera, evidenzia tutte le sue occorrenze (come "Smart Highlighting").</summary>
+    void SmartHighlight()
+    {
+        var e = Editor;
+        if (!_smartHighlight)
+        {
+            e.IndicatorCurrent = SmartIndicator;
+            e.IndicatorClearRange(0, e.TextLength);
+            return;
+        }
+        string? word = null;
+        int s = e.SelectionStart, en = e.SelectionEnd;
+        if (en > s && en - s <= 200 && e.Selections.Count == 1 && e.TextLength < 20_000_000)
+        {
+            var text = e.SelectedText;
+            if (text.Length > 0 && text.All(c => char.IsLetterOrDigit(c) || c == '_')
+                && e.WordStartPosition(s, true) == s && e.WordEndPosition(en, true) == en)
+                word = text;
+        }
+        if (word == _lastSmart && s == _lastSmartPos) return;
+        _lastSmart = word;
+        _lastSmartPos = s;
+        e.IndicatorCurrent = SmartIndicator;
+        e.IndicatorClearRange(0, e.TextLength);
+        if (word is null) return;
+
+        e.SearchFlags = SearchFlags.MatchCase | SearchFlags.WholeWord;
+        int start = 0, count = 0;
+        while (count < 5000)
+        {
+            e.TargetStart = start;
+            e.TargetEnd = e.TextLength;
+            if (e.SearchInTarget(word) < 0) break;
+            if (e.TargetStart != s) e.IndicatorFillRange(e.TargetStart, e.TargetEnd - e.TargetStart);
+            start = e.TargetEnd;
+            count++;
+        }
+    }
+
+    public void SetLanguage(Language lang, Theme theme, string font, int size)
+    {
+        Language = lang;
+        Languages.Apply(Editor, lang, theme, font, size);
+        ApplyTheme(theme);
+        UpdateLineNumberWidth();
+        RaiseState();
+    }
+
+    // ---------- Segnalibri ----------
+    public void ToggleBookmark(int line)
+    {
+        var l = Editor.Lines[line];
+        if ((l.MarkerGet() & (1u << BookmarkMarker)) != 0) l.MarkerDelete(BookmarkMarker);
+        else l.MarkerAdd(BookmarkMarker);
+    }
+
+    public void GotoBookmark(bool forward)
+    {
+        uint mask = 1u << BookmarkMarker;
+        int cur = Editor.CurrentLine;
+        int found = forward ? Editor.Lines[Math.Min(cur + 1, Editor.Lines.Count - 1)].MarkerNext(mask)
+                            : (cur > 0 ? Editor.Lines[cur - 1].MarkerPrevious(mask) : -1);
+        if (found < 0 || (forward && found <= cur))
+            found = forward ? Editor.Lines[0].MarkerNext(mask) : Editor.Lines[Editor.Lines.Count - 1].MarkerPrevious(mask);
+        if (found >= 0) GotoLine(found);
+    }
+
+    public void ClearBookmarks() => Editor.MarkerDeleteAll(BookmarkMarker);
+
+    public void GotoLine(int line)
+    {
+        line = Math.Clamp(line, 0, Editor.Lines.Count - 1);
+        Editor.Lines[line].EnsureVisible();
+        Editor.Lines[line].Goto();
+        Editor.FirstVisibleLine = Math.Max(0, Editor.Lines[line].DisplayIndex - Editor.LinesOnScreen / 3);
+        Editor.Focus();
+    }
+
+    // ---------- I/O file ----------
+    public new void Load(string path, Theme theme, string font, int size)
+    {
+        var bytes = File.ReadAllBytes(path);
+        (string text, FileEncoding enc) = Decode(bytes);
+        Encoding = enc;
+        FilePath = Path.GetFullPath(path);
+        DisplayName = Path.GetFileName(path);
+        LastWriteUtc = File.GetLastWriteTimeUtc(path);
+        _forcedDirty = false;
+        MissingAcknowledged = false;
+
+        Editor.ReadOnly = false;
+        Editor.Text = text;
+        Editor.EolMode = DetectEol(text);
+        Editor.EmptyUndoBuffer();
+        Editor.SetSavePoint();
+        DirtySinceBackup = false;
+        SetLanguage(Languages.FromPath(path), theme, font, size);
+    }
+
+    public void Reinterpret(FileEncoding enc)
+    {
+        if (FilePath is null || MissingOnDisk) return;
+        var bytes = File.ReadAllBytes(FilePath);
+        Editor.Text = enc == FileEncoding.Ansi ? Ansi.GetString(bytes) : new UTF8Encoding(false).GetString(bytes);
+        Encoding = enc;
+        _forcedDirty = false;
+        DirtySinceBackup = false;
+        Editor.EmptyUndoBuffer();
+        Editor.SetSavePoint();
+        RaiseState();
+    }
+
+    /// <summary>Ripristina il contenuto da un backup di sessione: il buffer risulta modificato rispetto al file.</summary>
+    public void RestoreFromBackup(string? path, string backupText, FileEncoding enc, Theme theme, string font, int size)
+    {
+        if (path != null && File.Exists(path)) Load(path, theme, font, size);
+        else if (path != null)
+        {
+            FilePath = Path.GetFullPath(path);
+            DisplayName = Path.GetFileName(path);
+            MissingAcknowledged = true;
+            _forcedDirty = true;
+            SetLanguage(Languages.FromPath(path), theme, font, size);
+        }
+        Encoding = enc;
+        Editor.Text = backupText;
+        Editor.EolMode = DetectEol(backupText);
+        Editor.EmptyUndoBuffer(); // azzera anche il punto di salvataggio di Scintilla...
+        DirtySinceBackup = false;
+        MarkDirty();              // ...quindi il buffer ripristinato va segnato esplicitamente come non salvato
+    }
+
+    public void Reload(Theme theme, string font, int size)
+    {
+        if (FilePath is null) return;
+        int pos = Editor.CurrentPosition, first = Editor.FirstVisibleLine;
+        Load(FilePath, theme, font, size);
+        Editor.GotoPosition(Math.Min(pos, Editor.TextLength));
+        Editor.FirstVisibleLine = first;
+    }
+
+    public void SaveTo(string path, Theme theme, string font, int size)
+    {
+        var bytes = Encode(Editor.Text, Encoding);
+        File.WriteAllBytes(path, bytes);
+        bool langChange = FilePath is null || !string.Equals(Path.GetExtension(FilePath), Path.GetExtension(path), StringComparison.OrdinalIgnoreCase);
+        FilePath = Path.GetFullPath(path);
+        DisplayName = Path.GetFileName(path);
+        LastWriteUtc = File.GetLastWriteTimeUtc(path);
+        _forcedDirty = false;
+        MissingAcknowledged = false;
+        Editor.SetSavePoint();
+        if (langChange) SetLanguage(Languages.FromPath(path), theme, font, size);
+        RaiseState();
+    }
+
+    public bool ChangedOnDisk => FilePath is not null && File.Exists(FilePath) && File.GetLastWriteTimeUtc(FilePath) != LastWriteUtc;
+    public bool MissingOnDisk => FilePath is not null && !File.Exists(FilePath);
+    public void AcknowledgeDiskState() { if (FilePath is not null && File.Exists(FilePath)) LastWriteUtc = File.GetLastWriteTimeUtc(FilePath); }
+
+    static Eol DetectEol(string text)
+    {
+        int i = text.IndexOfAny(['\r', '\n']);
+        if (i < 0) return Eol.CrLf;
+        if (text[i] == '\n') return Eol.Lf;
+        return i + 1 < text.Length && text[i + 1] == '\n' ? Eol.CrLf : Eol.Cr;
+    }
+
+    public static (string, FileEncoding) Decode(byte[] b)
+    {
+        if (b.Length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) return (new UTF8Encoding(false).GetString(b, 3, b.Length - 3), FileEncoding.Utf8Bom);
+        if (b.Length >= 2 && b[0] == 0xFF && b[1] == 0xFE) return (System.Text.Encoding.Unicode.GetString(b, 2, b.Length - 2), FileEncoding.Utf16Le);
+        if (b.Length >= 2 && b[0] == 0xFE && b[1] == 0xFF) return (System.Text.Encoding.BigEndianUnicode.GetString(b, 2, b.Length - 2), FileEncoding.Utf16Be);
+        try
+        {
+            var strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
+            return (strict.GetString(b), FileEncoding.Utf8);
+        }
+        catch (DecoderFallbackException)
+        {
+            return (Ansi.GetString(b), FileEncoding.Ansi);
+        }
+    }
+
+    public static byte[] Encode(string text, FileEncoding enc) => enc switch
+    {
+        FileEncoding.Ansi => Ansi.GetBytes(text),
+        FileEncoding.Utf8 => new UTF8Encoding(false).GetBytes(text),
+        FileEncoding.Utf8Bom => [.. new byte[] { 0xEF, 0xBB, 0xBF }, .. new UTF8Encoding(false).GetBytes(text)],
+        FileEncoding.Utf16Le => [.. new byte[] { 0xFF, 0xFE }, .. System.Text.Encoding.Unicode.GetBytes(text)],
+        FileEncoding.Utf16Be => [.. new byte[] { 0xFE, 0xFF }, .. System.Text.Encoding.BigEndianUnicode.GetBytes(text)],
+        _ => throw new ArgumentOutOfRangeException(nameof(enc)),
+    };
+
+    public static System.Text.Encoding Ansi => System.Text.Encoding.GetEncoding(1252);
+
+    public static string EncodingLabel(FileEncoding e) => e switch
+    {
+        FileEncoding.Ansi => "ANSI",
+        FileEncoding.Utf8 => "UTF-8",
+        FileEncoding.Utf8Bom => "UTF-8-BOM",
+        FileEncoding.Utf16Le => "UTF-16 LE BOM",
+        FileEncoding.Utf16Be => "UTF-16 BE BOM",
+        _ => "?",
+    };
+}

@@ -1,0 +1,21 @@
+[
+  {
+    "Id": "NotepadREA",
+    "Prefix": "Notepad",
+    "Suffix": "REA",
+    "AuthorBadge": "BY NOREA",
+    "Version": "V2.0.0",
+    "Tagline": "Editor di testo e codice Scintilla/Lexilla",
+    "Description": "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",
+    "IconType": "notepad",
+    "AccentHex": "#E05252",
+    "ProjectPath": "NotepadREA",
+    "BinaryPath": "dist\\NotepadREA.exe",
+    "AnalysisPath": "ANALISI_REA.md",
+    "InstallScript": "installa_associazioni.ps1",
+    "UninstallScript": "rimuovi_associazioni.ps1",
+    "EstimatedSizeMb": 53.7,
+    "LastUpdatedText": "Nov 10, 2026",
+    "IsPlanned": false
+  }
+]
