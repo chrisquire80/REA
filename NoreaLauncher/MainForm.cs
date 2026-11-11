@@ -576,7 +576,11 @@ public sealed class MainForm : Form
 
         try
         {
-            var psi = new ProcessStartInfo(exe) { UseShellExecute = true };
+            var psi = new ProcessStartInfo(exe)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(exe) ?? ""
+            };
             if (runAsAdmin) psi.Verb = "runas";
             var p = Process.Start(psi);
             if (p != null)
@@ -617,7 +621,12 @@ public sealed class MainForm : Form
 
         try
         {
-            var p = Process.Start(new ProcessStartInfo(exe, input) { UseShellExecute = true });
+            var psi = new ProcessStartInfo(exe, input)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(exe) ?? ""
+            };
+            var p = Process.Start(psi);
             if (p != null)
             {
                 app.IsRunning = true;

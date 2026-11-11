@@ -50,6 +50,9 @@ static class Program
             if (SendToRunningInstance(args)) return;
         }
 
+        // Assicura che le DLL native (Scintilla/Lexilla) siano sempre presenti prima dell'istanza UI
+        EnsureNativeDependencies();
+
         ApplicationConfiguration.Initialize();
         var form = new MainForm(args);
         if (first) StartPipeServer(form);
@@ -91,5 +94,50 @@ static class Program
             }
         }) { IsBackground = true, Name = "NotepadREA pipe" };
         t.Start();
+    }
+
+    static void EnsureNativeDependencies()
+    {
+        try
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string targetDir = Path.Combine(baseDir, "runtimes", "win-x64", "native");
+            string sciTarget = Path.Combine(targetDir, "Scintilla.dll");
+            string lexTarget = Path.Combine(targetDir, "Lexilla.dll");
+
+            if (File.Exists(sciTarget) && File.Exists(lexTarget))
+                return;
+
+            Directory.CreateDirectory(targetDir);
+
+            // 1. Prova a copiare da baseDir se presenti a fianco dell'eseguibile
+            string sciBeside = Path.Combine(baseDir, "Scintilla.dll");
+            string lexBeside = Path.Combine(baseDir, "Lexilla.dll");
+            if (!File.Exists(sciTarget) && File.Exists(sciBeside))
+                File.Copy(sciBeside, sciTarget, overwrite: true);
+            if (!File.Exists(lexTarget) && File.Exists(lexBeside))
+                File.Copy(lexBeside, lexTarget, overwrite: true);
+
+            if (File.Exists(sciTarget) && File.Exists(lexTarget))
+                return;
+
+            // 2. Estrazione di emergenza dalle risorse incorporate
+            var asm = typeof(Program).Assembly;
+            ExtractResource(asm, "EmbeddedNative.Scintilla.dll", sciTarget);
+            ExtractResource(asm, "EmbeddedNative.Lexilla.dll", lexTarget);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Impossibile predisporre le librerie native Scintilla", ex);
+        }
+    }
+
+    static void ExtractResource(System.Reflection.Assembly asm, string resName, string destPath)
+    {
+        if (File.Exists(destPath)) return;
+        using var stream = asm.GetManifestResourceStream(resName);
+        if (stream == null) return;
+        using var fs = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        stream.CopyTo(fs);
     }
 }

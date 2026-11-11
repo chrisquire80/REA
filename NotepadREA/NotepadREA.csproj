@@ -16,7 +16,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Scintilla5.NET" Version="7.1.1" />
+    <PackageReference Include="Scintilla5.NET" Version="7.1.1" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(PkgScintilla5_NET)\runtimes\win-x64\native\Scintilla.dll" LogicalName="EmbeddedNative.Scintilla.dll" />
+    <EmbeddedResource Include="$(PkgScintilla5_NET)\runtimes\win-x64\native\Lexilla.dll" LogicalName="EmbeddedNative.Lexilla.dll" />
   </ItemGroup>
 
 </Project>

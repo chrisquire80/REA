@@ -96,6 +96,21 @@ public static class InstallService
             // Spostamento atomico della nuova versione
             File.Move(newExe, targetExe, overwrite: true);
 
+            // Copia cartella runtimes e DLL native/dipendenti (es. Scintilla, Lexilla)
+            string? sourceDir = Path.GetDirectoryName(sourceExe);
+            if (!string.IsNullOrEmpty(sourceDir))
+            {
+                string sourceRuntimes = Path.Combine(sourceDir, "runtimes");
+                if (Directory.Exists(sourceRuntimes))
+                {
+                    CopyDirectory(sourceRuntimes, Path.Combine(installDir, "runtimes"));
+                }
+                foreach (var dll in Directory.GetFiles(sourceDir, "*.dll"))
+                {
+                    try { File.Copy(dll, Path.Combine(installDir, Path.GetFileName(dll)), overwrite: true); } catch { }
+                }
+            }
+
             // Copia icona se presente
             string? projDir = app.ResolvedProjectDir;
             if (projDir != null)
@@ -284,6 +299,28 @@ public static class InstallService
         catch (Exception ex)
         {
             Log.Warn("Errore creazione collegamento Desktop", ex);
+        }
+    }
+
+    public static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        try
+        {
+            Directory.CreateDirectory(destinationDir);
+            foreach (string file in Directory.GetFiles(sourceDir))
+            {
+                string dest = Path.Combine(destinationDir, Path.GetFileName(file));
+                File.Copy(file, dest, overwrite: true);
+            }
+            foreach (string subDir in Directory.GetDirectories(sourceDir))
+            {
+                string dest = Path.Combine(destinationDir, Path.GetFileName(subDir));
+                CopyDirectory(subDir, dest);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Errore durante la copia della directory da {sourceDir} a {destinationDir}", ex);
         }
     }
 }

@@ -36,7 +36,13 @@ public sealed class CommandPaletteForm : Form
             {
                 var exe = a.InstalledExePath ?? a.DistExePath;
                 if (!string.IsNullOrEmpty(exe) && File.Exists(exe))
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
+                    {
+                        UseShellExecute = true,
+                        WorkingDirectory = Path.GetDirectoryName(exe) ?? ""
+                    });
+                }
             }));
             if (a.ResolvedAnalysisFile != null)
             {
