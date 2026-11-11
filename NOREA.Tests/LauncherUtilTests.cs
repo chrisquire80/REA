@@ -69,4 +69,22 @@ public class LauncherUtilTests
             if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public void GetProcessTelemetry_CurrentProcess_ReturnsValidStats()
+    {
+        int currentPid = Environment.ProcessId;
+        var telem = LauncherUtil.GetProcessTelemetry(currentPid);
+
+        Assert.NotNull(telem);
+        Assert.True(telem.Value.RamMb > 0);
+        Assert.True(telem.Value.ThreadCount >= 1);
+    }
+
+    [Fact]
+    public void GetProcessTelemetry_InvalidPid_ReturnsNull()
+    {
+        var telem = LauncherUtil.GetProcessTelemetry(-1);
+        Assert.Null(telem);
+    }
 }

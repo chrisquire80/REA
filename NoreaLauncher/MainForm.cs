@@ -353,6 +353,42 @@ public sealed class MainForm : Form
         _detailView.CleanCacheRequested += (_, app) => CleanAppCache(app);
         _detailView.VerifyIntegrityRequested += (_, app) => VerifyAppIntegrity(app);
         _detailView.RollbackRequested += (_, app) => RollbackAppVersion(app);
+        _detailView.OpenRecentFileRequested += (_, args) =>
+        {
+            var (app, filePath) = args;
+            var exe = app.InstalledExePath ?? app.DistExePath;
+            if (!string.IsNullOrEmpty(exe) && File.Exists(exe))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(exe, $"\"{filePath}\"")
+                    {
+                        UseShellExecute = true,
+                        WorkingDirectory = Path.GetDirectoryName(exe) ?? ""
+                    });
+                    _infoBar.ShowMessage($"Apertura file {Path.GetFileName(filePath)} in corso...", InfoBarControl.BarType.Info, _theme);
+                }
+                catch (Exception ex)
+                {
+                    _infoBar.ShowMessage($"Errore nell'apertura del file: {ex.Message}", InfoBarControl.BarType.Error, _theme);
+                }
+            }
+        };
+        _detailView.PathConfigChanged += (_, success) =>
+        {
+            if (success)
+            {
+                bool nowConfigured = LauncherUtil.IsPathConfigured();
+                string msg = nowConfigured
+                    ? "Binari NOREA aggiunti con successo al PATH utente! Ora puoi avviare 'notepadrea' o 'norea' da qualsiasi terminale."
+                    : "Binari NOREA rimossi dal PATH utente.";
+                _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
+            }
+            else
+            {
+                _infoBar.ShowMessage("Impossibile modificare la variabile d'ambiente PATH dell'utente.", InfoBarControl.BarType.Error, _theme);
+            }
+        };
 
         _mainHost.Controls.Add(_detailView);
         _mainHost.Controls.Add(_emptyStatePanel);

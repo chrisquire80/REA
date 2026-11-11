@@ -131,7 +131,21 @@ public sealed class SettingsView : UserControl
             _tbInstallFolder.Text = LauncherUtil.AnonymizePath(_settings.InstallFolder);
             _toolTip.SetToolTip(_tbInstallFolder, _settings.InstallFolder);
         });
-        cardFolder.Controls.AddRange([_btnBrowse, _btnDefaultFolder]);
+
+        var btnTogglePath = new Button { Height = 28 };
+        void UpdatePathBtn()
+        {
+            bool isSet = LauncherUtil.IsPathConfigured();
+            btnTogglePath.Text = isSet ? "✓ PATH ATTIVO" : "+ INTEGRA NEL PATH";
+        }
+        UpdatePathBtn();
+        SetupOutlineButton(btnTogglePath, btnTogglePath.Text, 264, 124, 175, () =>
+        {
+            bool nowSet = LauncherUtil.IsPathConfigured();
+            LauncherUtil.SetUserPathConfigured(!nowSet);
+            UpdatePathBtn();
+        });
+        cardFolder.Controls.AddRange([_btnBrowse, _btnDefaultFolder, btnTogglePath]);
         cardFolder.Controls.Add(MakeMutedLabel("I file esistenti mantengono la loro posizione corrente.", 18, 162));
 
         var cardWin = MakeCard("FORMATO DI INSTALLAZIONE", rightX, 294, colW, 112);

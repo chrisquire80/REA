@@ -288,6 +288,26 @@ public sealed class MainForm : Form
             Item("Esegui macro N volte...", RunMacroMultipleTimes));
 
         var tools = Sub("Strume&nti",
+            Item("Confronta file (Diff Side-by-Side)...", OpenDiffDialog, Keys.Control | Keys.Alt | Keys.D),
+            Sep(),
+            Sub("Formattazione e Minificazione",
+                Item("Formatta JSON", () => TransformSelectionOrAll(s => TextTransformTools.FormatJson(s, false)), Keys.Control | Keys.Shift | Keys.J),
+                Item("Minifica JSON", () => TransformSelectionOrAll(s => TextTransformTools.FormatJson(s, true))),
+                Item("Formatta XML", () => TransformSelectionOrAll(s => TextTransformTools.FormatXml(s, false))),
+                Item("Minifica XML", () => TransformSelectionOrAll(s => TextTransformTools.FormatXml(s, true)))),
+            Sub("Codifica / Decodifica",
+                Item("Base64 Encode", () => TransformSelectionOrAll(TextTransformTools.Base64Encode), Keys.Control | Keys.Shift | Keys.B),
+                Item("Base64 Decode", () => TransformSelectionOrAll(TextTransformTools.Base64Decode)),
+                Item("URL Encode", () => TransformSelectionOrAll(TextTransformTools.UrlEncode)),
+                Item("URL Decode", () => TransformSelectionOrAll(TextTransformTools.UrlDecode))),
+            Sub("Manipolazione Righe",
+                Item("Ordina righe (A -> Z)", () => TransformSelectionOrAll(s => TextTransformTools.SortLines(s, false))),
+                Item("Ordina righe (Z -> A)", () => TransformSelectionOrAll(s => TextTransformTools.SortLines(s, true))),
+                Item("Rimuovi righe duplicate", () => TransformSelectionOrAll(TextTransformTools.RemoveDuplicateLines)),
+                Item("Rimuovi spazi a fine riga (Trim)", () => TransformSelectionOrAll(TextTransformTools.TrimTrailingSpaces))),
+            Sub("Maiuscole / Minuscole",
+                Item("Iniziali Maiuscole (Title Case)", () => TransformSelectionOrAll(TextTransformTools.ToTitleCase))),
+            Sep(),
             Item("Hash MD5 / SHA-256 della selezione o del documento", ShowHashes),
             Item("Statistiche documento", ShowSummary));
 
@@ -1183,6 +1203,42 @@ public sealed class MainForm : Form
         int a = e.AnchorPosition, c = e.CurrentPosition;
         e.ReplaceSelection(f(e.SelectedText));
         e.SetSelection(c, a);
+    }
+
+    void TransformSelectionOrAll(Func<string, string> f)
+    {
+        if (Current is not { } d || d.Editor.ReadOnly) return;
+        var e = d.Editor;
+        e.BeginUndoAction();
+        try
+        {
+            if (e.SelectionStart != e.SelectionEnd)
+            {
+                int a = e.AnchorPosition, c = e.CurrentPosition;
+                e.ReplaceSelection(f(e.SelectedText));
+                e.SetSelection(c, a);
+            }
+            else
+            {
+                int cur = e.CurrentPosition;
+                e.Text = f(e.Text);
+                if (cur <= e.TextLength) e.CurrentPosition = cur;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Errore durante l'operazione: " + ex.Message, "Strumenti", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            e.EndUndoAction();
+        }
+    }
+
+    void OpenDiffDialog()
+    {
+        using var diff = new DiffForm(Docs.ToList(), Current, CurrentTheme);
+        diff.ShowDialog(this);
     }
 
     void JoinLines()

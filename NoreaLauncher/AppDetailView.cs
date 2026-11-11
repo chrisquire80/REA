@@ -41,6 +41,10 @@ public sealed class AppDetailView : Panel
     public event EventHandler<AppEntry>? CleanCacheRequested;
     public event EventHandler<AppEntry>? VerifyIntegrityRequested;
     public event EventHandler<AppEntry>? RollbackRequested;
+    public event EventHandler<(AppEntry App, string FilePath)>? OpenRecentFileRequested;
+    public event EventHandler<bool>? PathConfigChanged;
+
+    private readonly System.Windows.Forms.Timer _telemetryTimer = new() { Interval = 1500 };
 
     public AppDetailView()
     {
@@ -48,6 +52,15 @@ public sealed class AppDetailView : Panel
         DoubleBuffered = true;
 
         SetupControls();
+
+        _telemetryTimer.Tick += (_, _) =>
+        {
+            if (_app != null && _app.IsRunning && _body.Visible)
+            {
+                _body.Invalidate();
+            }
+        };
+        _telemetryTimer.Start();
     }
 
     void SetupControls()
@@ -234,6 +247,28 @@ public sealed class AppDetailView : Panel
         int left = 24;
         int contentW = _body.Width - 48;
 
+        // Telemetria Live se in esecuzione
+        if (_app.IsRunning)
+        {
+            var telem = LauncherUtil.GetProcessTelemetry(_app.RunningPid);
+            if (telem.HasValue)
+            {
+                var telemRect = new RectangleF(left, y, contentW, 58);
+                using var tPath = GraphicsHelper.RoundRect(telemRect, 6f);
+                using (var b = new SolidBrush(Color.FromArgb(20, 45, 25))) g.FillPath(b, tPath);
+                using (var p = new Pen(Color.FromArgb(40, 160, 60))) g.DrawPath(p, tPath);
+
+                int ty = y + 10;
+                int tx = left + 14;
+                TextRenderer.DrawText(g, $"● IN ESECUZIONE (PID: {_app.RunningPid})", MonoSmallFont, new Point(tx, ty), Color.FromArgb(70, 220, 100));
+
+                string stats = $"RAM: {telem.Value.RamMb} MB   |   Uptime: {telem.Value.Uptime.Hours:D2}:{telem.Value.Uptime.Minutes:D2}:{telem.Value.Uptime.Seconds:D2}   |   Thread: {telem.Value.ThreadCount}";
+                TextRenderer.DrawText(g, stats, BodyFont, new Point(tx, ty + 20), _theme.TextPrimary);
+
+                y += 70;
+            }
+        }
+
         // 1. Descrizione
         TextRenderer.DrawText(g, "Descrizione", H2Font, new Point(left, y), _theme.TextPrimary);
         y += 24;
@@ -312,9 +347,40 @@ public sealed class AppDetailView : Panel
         if (_app == null) return;
         var cm = new ContextMenuStrip();
 
+        var recent = LauncherUtil.GetRecentFiles(_app.Id);
+        if (recent.Count > 0)
+        {
+            var recentMenu = new ToolStripMenuItem("File Recenti");
+            foreach (var r in recent)
+            {
+                string filePath = r;
+                string display = Path.GetFileName(filePath) + " (" + LauncherUtil.AnonymizePath(Path.GetDirectoryName(filePath) ?? "") + ")";
+                recentMenu.DropDownItems.Add(display, null, (_, _) =>
+                {
+                    OpenRecentFileRequested?.Invoke(this, (_app, filePath));
+                });
+            }
+            cm.Items.Add(recentMenu);
+            cm.Items.Add(new ToolStripSeparator());
+        }
+
         cm.Items.Add("Mostra cartella binari", null, (_, _) => ShowBinFolderRequested?.Invoke(this, _app));
+        cm.Items.Add("Copia percorso binario", null, (_, _) =>
+        {
+            var exe = _app.InstalledExePath ?? _app.DistExePath;
+            if (!string.IsNullOrEmpty(exe)) Clipboard.SetText(exe);
+        });
         cm.Items.Add("Verifica integrità file", null, (_, _) => VerifyIntegrityRequested?.Invoke(this, _app));
         cm.Items.Add("Pulisci cache e file temporanei", null, (_, _) => CleanCacheRequested?.Invoke(this, _app));
+
+        cm.Items.Add(new ToolStripSeparator());
+        bool isPathConfigured = LauncherUtil.IsPathConfigured();
+        string pathText = isPathConfigured ? "Rimuovi dal PATH utente (Terminale CLI)" : "Aggiungi al PATH utente (Terminale CLI)";
+        cm.Items.Add(pathText, null, (_, _) =>
+        {
+            bool ok = LauncherUtil.SetUserPathConfigured(!isPathConfigured);
+            PathConfigChanged?.Invoke(this, ok);
+        });
 
         if (_app.HasRollback)
         {
