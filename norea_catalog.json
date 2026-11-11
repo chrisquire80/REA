@@ -4,18 +4,28 @@
     "Prefix": "Notepad",
     "Suffix": "REA",
     "AuthorBadge": "BY NOREA",
-    "Version": "V2.0.0",
+    "Version": "v2.0.0",
+    "Runtime": "Scintilla/Lexilla · .NET 10",
     "Tagline": "Editor di testo e codice Scintilla/Lexilla",
     "Description": "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",
     "IconType": "notepad",
-    "AccentHex": "#E05252",
+    "AccentHex": "#60A5FA",
     "ProjectPath": "NotepadREA",
     "BinaryPath": "dist\\NotepadREA.exe",
     "AnalysisPath": "ANALISI_REA.md",
     "InstallScript": "installa_associazioni.ps1",
     "UninstallScript": "rimuovi_associazioni.ps1",
     "EstimatedSizeMb": 53.7,
-    "LastUpdatedText": "Nov 10, 2026",
-    "IsPlanned": false
+    "LastUpdatedText": "10 nov 2026",
+    "IsPlanned": false,
+    "Analysis": {
+      "Title": "Esito Analisi Statica (Notepad++ 8.9.8.1 Portable)",
+      "Rows": [
+        { "Label": "Target analizzato:", "Value": "notepad++.exe (PE32+, AMD64, 8.5 MB, Authenticode firmato)" },
+        { "Label": "Motore individuato:", "Value": "Scintilla + Lexilla linkati staticamente (nessuna DLL esterna)" },
+        { "Label": "Hardening:", "Value": "Control Flow Guard attivo, Security Cookie /GS presente" },
+        { "Label": "Ricostruzione NOREA:", "Value": "C# .NET 10 WinForms con Scintilla5.NET (zero codice sorgente Notepad++)" }
+      ]
+    }
   }
 ]

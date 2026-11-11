@@ -11,7 +11,37 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); // ANSI (cp1252)
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); // ANSI (cp1252 / system)
+
+        // Supporto salvataggio con privilegi elevati (UAC fallback)
+        if (args.Length >= 3 && args[0] == "--elevated-save")
+        {
+            try
+            {
+                string tmp = args[1];
+                string dest = args[2];
+                if (File.Exists(tmp))
+                {
+                    string? dir = Path.GetDirectoryName(dest);
+                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                    File.Copy(tmp, dest, overwrite: true);
+                    try { File.Delete(tmp); } catch { }
+                    return;
+                }
+                Environment.ExitCode = 1;
+                return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Errore nel salvataggio con privilegi elevati", ex);
+                Environment.ExitCode = 1;
+                return;
+            }
+        }
+
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) => Log.Error("Errore thread non gestito", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Error("Errore applicativo non gestito", e.ExceptionObject as Exception);
 
         // Istanza singola (come Notepad++): se l'editor è già aperto gli passa i file e termina.
         using var mutex = new Mutex(true, Id, out bool first);

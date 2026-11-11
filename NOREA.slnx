@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="NOREA.Tests/NOREA.Tests.csproj" />
+  <Project Path="NoreaLauncher/NoreaLauncher.csproj" />
+  <Project Path="NotepadREA/NotepadREA.csproj" />
+</Solution>

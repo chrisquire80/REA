@@ -8,26 +8,39 @@ using Microsoft.Win32;
 
 namespace NoreaLauncher;
 
+public sealed class AnalysisRow
+{
+    public string Label { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
+public sealed class AnalysisSection
+{
+    public string Title { get; set; } = "";
+    public List<AnalysisRow> Rows { get; set; } = [];
+}
+
 public sealed class AppEntry
 {
     public string Id { get; set; } = "";
     public string Prefix { get; set; } = "";
     public string Suffix { get; set; } = "REA";
     public string AuthorBadge { get; set; } = "BY NOREA";
-    public string Version { get; set; } = "V2.0.0";
+    public string Version { get; set; } = "v2.0.0";
     public string Runtime { get; set; } = "Scintilla/Lexilla · .NET 10";
     public string Tagline { get; set; } = "";
     public string Description { get; set; } = "";
     public string IconType { get; set; } = "notepad";
-    public string AccentHex { get; set; } = "#FF7B7B";
+    public string AccentHex { get; set; } = "#60A5FA";
     public string? ProjectPath { get; set; }
     public string? BinaryPath { get; set; }
     public string? AnalysisPath { get; set; }
     public string? InstallScript { get; set; }
     public string? UninstallScript { get; set; }
     public double EstimatedSizeMb { get; set; } = 53.7;
-    public string LastUpdatedText { get; set; } = "10 Nov 2026";
+    public string LastUpdatedText { get; set; } = "10 nov 2026";
     public bool IsPlanned { get; set; }
+    public AnalysisSection? Analysis { get; set; }
 
     [JsonIgnore] public string DisplayName => Prefix + Suffix;
     [JsonIgnore] public string? InstalledExePath { get; set; }
@@ -44,14 +57,16 @@ public sealed class AppEntry
     [JsonIgnore] public bool HasDistBuild => !string.IsNullOrEmpty(DistExePath) && File.Exists(DistExePath);
     [JsonIgnore] public bool HasProject => !string.IsNullOrEmpty(ResolvedProjectDir) && Directory.Exists(ResolvedProjectDir);
     [JsonIgnore] public bool CanBuildOrInstall => HasDistBuild || HasProject;
-    [JsonIgnore] public bool IsCanary => Version.Contains('-') || Version.StartsWith("V0.", StringComparison.OrdinalIgnoreCase);
+    [JsonIgnore] public bool IsCanary => Version.Contains('-') || Version.StartsWith("v0.", StringComparison.OrdinalIgnoreCase);
     [JsonIgnore] public bool HasUpdate =>
         IsInstalled && HasDistBuild &&
-        File.GetLastWriteTimeUtc(DistExePath!) > File.GetLastWriteTimeUtc(InstalledExePath!).AddSeconds(5);
+        (LauncherUtil.CompareVersions(Version, "v0.0.0") >= 0 &&
+         File.GetLastWriteTimeUtc(DistExePath!) > File.GetLastWriteTimeUtc(InstalledExePath!).AddSeconds(5));
 
     [JsonIgnore] public bool IsRunning { get; set; }
     [JsonIgnore] public int? RunningPid { get; set; }
     [JsonIgnore] public string? Sha256Short { get; set; }
+    [JsonIgnore] public bool IsOperating { get; set; }
 
     public string GetConfigAndBackupDir() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Id);
@@ -207,14 +222,34 @@ public static class CatalogService
             try
             {
                 var procs = Process.GetProcessesByName(app.Id);
-                if (procs.Length > 0)
+                foreach (var p in procs)
                 {
-                    running = true;
-                    pid = procs[0].Id;
+                    try
+                    {
+                        string? fn = p.MainModule?.FileName;
+                        if (!string.IsNullOrEmpty(fn) &&
+                            (string.Equals(fn, app.InstalledExePath, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(fn, app.DistExePath, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            running = true;
+                            pid = p.Id;
+                            break;
+                        }
+                    }
+                    catch
+                    {
+                        // Se non possiamo accedere a MainModule (permessi), consideriamo comunque il processo
+                        running = true;
+                        pid = p.Id;
+                        break;
+                    }
                 }
                 foreach (var p in procs) p.Dispose();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Warn($"Errore verifica stato processi per {app.Id}", ex);
+            }
 
             if (app.IsRunning != running || app.RunningPid != pid)
             {
@@ -226,12 +261,7 @@ public static class CatalogService
         return changed;
     }
 
-    public static string ComputeFileSha256(string path)
-    {
-        using var fs = File.OpenRead(path);
-        var hash = SHA256.HashData(fs);
-        return Convert.ToHexStringLower(hash);
-    }
+    public static string ComputeFileSha256(string path) => LauncherUtil.ComputeFileSha256(path);
 
     public static void SaveCatalog(LauncherSettings settings, List<AppEntry> apps)
     {
@@ -246,18 +276,21 @@ public static class CatalogService
 
     static void DiscoverWorkspaceProjects(string ws, List<AppEntry> list, LauncherSettings settings)
     {
-        bool added = false;
         try
         {
             foreach (var dir in Directory.GetDirectories(ws))
             {
                 var folderName = Path.GetFileName(dir);
-                if (string.Equals(folderName, "NoreaLauncher", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(folderName, "NoreaLauncher", StringComparison.OrdinalIgnoreCase) ||
+                    folderName.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
+                    folderName.EndsWith("Tests", StringComparison.OrdinalIgnoreCase)) continue;
                 var csproj = Directory.GetFiles(dir, "*.csproj").FirstOrDefault();
                 if (csproj is null) continue;
 
                 var id = Path.GetFileNameWithoutExtension(csproj);
-                if (string.Equals(id, "NoreaLauncher", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(id, "NoreaLauncher", StringComparison.OrdinalIgnoreCase) ||
+                    id.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
+                    id.EndsWith("Tests", StringComparison.OrdinalIgnoreCase)) continue;
 
                 var existing = list.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
                 if (existing is null)
@@ -279,7 +312,6 @@ public static class CatalogService
                         IsPlanned = false,
                     };
                     list.Insert(0, existing);
-                    added = true;
                 }
                 else
                 {
@@ -317,14 +349,16 @@ public static class CatalogService
                             BinaryPath = Path.Combine("dist", Path.GetFileName(exe)),
                             IsPlanned = false,
                         });
-                        added = true;
                     }
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warn("Errore scansione cartelle workspace", ex);
+        }
 
-        if (added) SaveCatalog(settings, list);
+        // Le app scoperte dinamicamente restano nella sessione in memoria senza sovrascrivere norea_catalog.json
     }
 
     static void ResolveAppState(AppEntry app, string ws, LauncherSettings settings)
@@ -424,7 +458,18 @@ public static class CatalogService
             Description = "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",
             IconType = "notepad", AccentHex = "#60A5FA", ProjectPath = "NotepadREA", BinaryPath = @"dist\NotepadREA.exe",
             AnalysisPath = "ANALISI_REA.md", InstallScript = "installa_associazioni.ps1", UninstallScript = "rimuovi_associazioni.ps1",
-            EstimatedSizeMb = 53.7, LastUpdatedText = "10 Nov 2026", IsPlanned = false
+            EstimatedSizeMb = 53.7, LastUpdatedText = "10 nov 2026", IsPlanned = false,
+            Analysis = new AnalysisSection
+            {
+                Title = "Esito Analisi Statica (Notepad++ 8.9.8.1 Portable)",
+                Rows =
+                [
+                    new AnalysisRow { Label = "Target analizzato:", Value = "notepad++.exe (PE32+, AMD64, 8.5 MB, Authenticode firmato)" },
+                    new AnalysisRow { Label = "Motore individuato:", Value = "Scintilla + Lexilla linkati staticamente (nessuna DLL esterna)" },
+                    new AnalysisRow { Label = "Hardening:", Value = "Control Flow Guard attivo, Security Cookie /GS presente" },
+                    new AnalysisRow { Label = "Ricostruzione NOREA:", Value = "C# .NET 10 WinForms con Scintilla5.NET (zero codice sorgente Notepad++)" }
+                ]
+            }
         },
     ];
 }

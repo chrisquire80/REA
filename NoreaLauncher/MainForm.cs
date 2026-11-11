@@ -189,13 +189,18 @@ public sealed class MainForm : Form
             using var border = new Pen(_theme.Border);
 
             // Brand
+            int sepX = 86;
             using (var brandFont = new Font("Segoe UI", 11f, FontStyle.Bold))
+            {
+                var sz = TextRenderer.MeasureText(g, "NOREA", brandFont, Size.Empty, TextFormatFlags.NoPadding);
+                sepX = 16 + sz.Width + 14;
                 TextRenderer.DrawText(g, "NOREA", brandFont, new Point(16, 12), _theme.TextPrimary, TextFormatFlags.NoPadding);
+            }
 
-            g.DrawLine(border, 86, 12, 86, 31);
+            g.DrawLine(border, sepX, 12, sepX, 31);
 
             using (var suiteFont = new Font("Consolas", 8.2f, FontStyle.Regular))
-                TextRenderer.DrawText(g, "APP SUITE", suiteFont, new Point(98, 15), _theme.TextSecondary, TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g, "APP SUITE", suiteFont, new Point(sepX + 12, 15), _theme.TextSecondary, TextFormatFlags.NoPadding);
 
             // Pulsanti finestra
             int w = _titleBar.Width, h = _titleBar.Height;
@@ -336,6 +341,9 @@ public sealed class MainForm : Form
 
         // Area Dettaglio Destra
         _detailView.OpenRequested += (_, app) => LaunchApp(app);
+        _detailView.InstallRequested += async (_, app) => await InstallOrUpdateApp(app);
+        _detailView.UpdateRequested += async (_, app) => await InstallOrUpdateApp(app);
+        _detailView.UninstallRequested += async (_, app) => await UninstallApp(app);
         _detailView.OpenAsAdminRequested += (_, app) => LaunchApp(app, runAsAdmin: true);
         _detailView.OpenCustomArgsRequested += (_, app) => LaunchAppCustomArgs(app);
         _detailView.StopProcessRequested += (_, app) => StopAppProcess(app);
@@ -499,12 +507,13 @@ public sealed class MainForm : Form
             _detailView.Visible = true;
 
             int y = 0;
+            var defaultApp = list.FirstOrDefault(a => a.IsInstalled) ?? list[0];
             foreach (var app in list)
             {
                 var item = new AppListSideItem(app, _theme)
                 {
                     Dock = DockStyle.Top,
-                    IsSelected = app == _selectedApp || (_selectedApp == null && app == list[0])
+                    IsSelected = app == _selectedApp || (_selectedApp == null && app == defaultApp)
                 };
                 var a = app;
                 item.Click += (_, _) => SelectApp(a);
@@ -513,7 +522,7 @@ public sealed class MainForm : Form
             }
 
             if (_selectedApp == null || !list.Contains(_selectedApp))
-                SelectApp(list[0]);
+                SelectApp(defaultApp);
             else
                 _detailView.SetApp(_selectedApp, _theme);
         }
@@ -530,7 +539,7 @@ public sealed class MainForm : Form
         _detailView.SetApp(app, _theme);
     }
 
-    void ToggleSettings(bool showSettings)
+    internal void ToggleSettings(bool showSettings)
     {
         _inSettings = showSettings;
         _toolbar.Visible = !showSettings;
@@ -602,15 +611,106 @@ public sealed class MainForm : Form
     {
         try
         {
-            var procs = Process.GetProcessesByName(app.Id);
-            foreach (var p in procs) { p.Kill(); p.Dispose(); }
-            _infoBar.ShowMessage($"Processo {app.DisplayName} terminato.", InfoBarControl.BarType.Warning, _theme);
+            var procs = Process.GetProcessesByName(app.Id)
+                .Where(p =>
+                {
+                    try
+                    {
+                        string? fn = p.MainModule?.FileName;
+                        return !string.IsNullOrEmpty(fn) &&
+                               (string.Equals(fn, app.InstalledExePath, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(fn, app.DistExePath, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch { return true; }
+                }).ToList();
+
+            if (procs.Count == 0)
+            {
+                _infoBar.ShowMessage($"Nessun processo attivo di {app.DisplayName} trovato.", InfoBarControl.BarType.Info, _theme);
+                CheckProcessStatus();
+                return;
+            }
+
+            // Tentativo 1: Chiusura ordinata
+            foreach (var p in procs)
+            {
+                try { p.CloseMainWindow(); } catch { }
+            }
+
+            bool allExited = true;
+            foreach (var p in procs)
+            {
+                try
+                {
+                    if (!p.WaitForExit(2500)) allExited = false;
+                }
+                catch { }
+            }
+
+            if (!allExited)
+            {
+                if (MessageBox.Show(this,
+                    $"Il processo {app.DisplayName} non risponde alla chiusura ordinata.\nVuoi forzare l'arresto immediato? Le eventuali modifiche non salvate andranno perse.",
+                    "Forza arresto processo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    foreach (var p in procs)
+                    {
+                        try { if (!p.HasExited) p.Kill(); } catch { }
+                    }
+                    _infoBar.ShowMessage($"Processo {app.DisplayName} arrestato forzatamente.", InfoBarControl.BarType.Warning, _theme);
+                }
+            }
+            else
+            {
+                _infoBar.ShowMessage($"Processo {app.DisplayName} chiuso regolarmente.", InfoBarControl.BarType.Success, _theme);
+            }
+
+            foreach (var p in procs) p.Dispose();
             CheckProcessStatus();
         }
         catch (Exception ex)
         {
+            Log.Error($"Errore arresto {app.DisplayName}", ex);
             _infoBar.ShowMessage($"Impossibile arrestare il processo: {ex.Message}", InfoBarControl.BarType.Error, _theme);
         }
+    }
+
+    async Task InstallOrUpdateApp(AppEntry app)
+    {
+        if (app.IsOperating) return;
+        app.IsOperating = true;
+        _detailView.SetApp(app, _theme);
+        _infoBar.ShowMessage($"Installazione di {app.DisplayName} in corso...", InfoBarControl.BarType.Info, _theme);
+
+        var (success, msg) = await InstallService.InstallOrUpdateAppAsync(app, _settings);
+        app.IsOperating = false;
+        ReloadCatalog();
+
+        if (success)
+            _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
+        else
+            _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
+    }
+
+    async Task UninstallApp(AppEntry app)
+    {
+        if (MessageBox.Show(this,
+            $"Confermi la disinstallazione di {app.DisplayName}?\nVerranno rimosse le associazioni file e la cartella del programma.",
+            $"Disinstalla {app.DisplayName}", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            return;
+
+        app.IsOperating = true;
+        _detailView.SetApp(app, _theme);
+        _infoBar.ShowMessage($"Disinstallazione di {app.DisplayName} in corso...", InfoBarControl.BarType.Info, _theme);
+
+        var (success, msg) = await InstallService.UninstallAppAsync(app);
+        app.IsOperating = false;
+        ReloadCatalog();
+
+        if (success)
+            _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
+        else
+            _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
     }
 
     void OpenAppSourceOrAnalysis(AppEntry app)
@@ -652,6 +752,7 @@ public sealed class MainForm : Form
             }
             catch (Exception ex)
             {
+                Log.Error("Errore pulizia cache", ex);
                 _infoBar.ShowMessage($"Errore pulizia: {ex.Message}", InfoBarControl.BarType.Error, _theme);
             }
         }
@@ -663,51 +764,31 @@ public sealed class MainForm : Form
 
     void VerifyAppIntegrity(AppEntry app)
     {
-        var exe = app.InstalledExePath ?? app.DistExePath;
-        if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
+        var res = InstallService.VerifyIntegrity(app);
+        if (res.Valid)
         {
-            _infoBar.ShowMessage("Binario non trovato per la verifica.", InfoBarControl.BarType.Error, _theme);
-            return;
-        }
-
-        try
-        {
-            string hash = CatalogService.ComputeFileSha256(exe);
-            app.Sha256Short = hash[..16] + "...";
+            app.Sha256Short = res.Hash.Length >= 16 ? res.Hash[..16] + "..." : res.Hash;
             _detailView.SetApp(app, _theme);
-            _infoBar.ShowMessage($"Integrità verificata con successo! SHA-256: {hash}", InfoBarControl.BarType.Success, _theme,
-                actionText: "Copia Hash", action: () => Clipboard.SetText(hash));
+            _infoBar.ShowMessage(res.Message, InfoBarControl.BarType.Success, _theme,
+                actionText: "Copia Hash", action: () => Clipboard.SetText(res.Hash));
         }
-        catch (Exception ex)
+        else
         {
-            _infoBar.ShowMessage($"Verifica fallita: {ex.Message}", InfoBarControl.BarType.Error, _theme);
+            _infoBar.ShowMessage(res.Message, InfoBarControl.BarType.Error, _theme);
         }
     }
 
     void RollbackAppVersion(AppEntry app)
     {
-        if (!app.HasRollback || app.InstalledExePath == null || app.RollbackExePath == null)
+        var res = InstallService.RollbackApp(app);
+        if (res.Success)
         {
-            _infoBar.ShowMessage("Nessuna versione precedente disponibile per il rollback.", InfoBarControl.BarType.Warning, _theme);
-            return;
-        }
-
-        try
-        {
-            var cur = app.InstalledExePath;
-            var prev = app.RollbackExePath;
-            var tmp = cur + ".tmp";
-
-            File.Move(cur, tmp);
-            File.Move(prev, cur);
-            File.Move(tmp, prev);
-
             ReloadCatalog();
-            _infoBar.ShowMessage($"Rollback di {app.DisplayName} completato con successo.", InfoBarControl.BarType.Success, _theme);
+            _infoBar.ShowMessage(res.Message, InfoBarControl.BarType.Success, _theme);
         }
-        catch (Exception ex)
+        else
         {
-            _infoBar.ShowMessage($"Errore durante il rollback: {ex.Message}", InfoBarControl.BarType.Error, _theme);
+            _infoBar.ShowMessage(res.Message, InfoBarControl.BarType.Error, _theme);
         }
     }
 
@@ -758,72 +839,7 @@ public sealed class MainForm : Form
 
     public void ExportPreviews(string outDir)
     {
-        Directory.CreateDirectory(outDir);
-        ToggleSettings(false);
-        PerformLayout();
-        LayoutToolbar();
-        using (var bmp1 = RenderTree(this))
-            bmp1.Save(Path.Combine(outDir, "norea_launcher_suite.png"), System.Drawing.Imaging.ImageFormat.Png);
-
-        ToggleSettings(true);
-        PerformLayout();
-        using (var bmp2 = RenderTree(this))
-            bmp2.Save(Path.Combine(outDir, "norea_launcher_settings.png"), System.Drawing.Imaging.ImageFormat.Png);
-
-        QuitApplication();
-    }
-
-    Bitmap RenderTree(Control root)
-    {
-        var bmp = new Bitmap(root.Width, root.Height);
-        void Walk(Control parent, Point origin, Rectangle clipRect)
-        {
-            for (int i = parent.Controls.Count - 1; i >= 0; i--)
-            {
-                var c = parent.Controls[i];
-                if (!c.Visible || c.Width <= 0 || c.Height <= 0) continue;
-                var pt = new Point(origin.X + c.Left, origin.Y + c.Top);
-                var bounds = new Rectangle(pt.X, pt.Y, c.Width, c.Height);
-                var visibleClip = Rectangle.Intersect(clipRect, bounds);
-                if (visibleClip.Width <= 0 || visibleClip.Height <= 0) continue;
-
-                using (var cb = new Bitmap(c.Width, c.Height))
-                {
-                    using (var cg = Graphics.FromImage(cb))
-                    {
-                        cg.Clear(c.BackColor);
-                        InvokePaintBackground(c, new PaintEventArgs(cg, new Rectangle(0, 0, c.Width, c.Height)));
-                        InvokePaint(c, new PaintEventArgs(cg, new Rectangle(0, 0, c.Width, c.Height)));
-                        if (c is TextBox tb)
-                        {
-                            string t = string.IsNullOrEmpty(tb.Text) ? tb.PlaceholderText : tb.Text;
-                            Color tc = string.IsNullOrEmpty(tb.Text) ? _theme.TextMuted : tb.ForeColor;
-                            TextRenderer.DrawText(cg, t, tb.Font, new Point(2, (tb.Height - tb.Font.Height) / 2), tc, TextFormatFlags.NoPadding);
-                        }
-                        else if (c == _chipCtrlK)
-                        {
-                            TextRenderer.DrawText(cg, _chipCtrlK.Text, _chipCtrlK.Font, new Rectangle(0, 0, _chipCtrlK.Width, _chipCtrlK.Height), _chipCtrlK.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                        }
-                        else if (c is ComboBox cbx)
-                        {
-                            cg.Clear(cbx.BackColor);
-                            using var pen = new Pen(_theme.BorderStrong);
-                            cg.DrawRectangle(pen, 0, 0, cbx.Width - 1, cbx.Height - 1);
-                            string text = cbx.SelectedItem?.ToString() ?? cbx.Text;
-                            TextRenderer.DrawText(cg, text, cbx.Font, new Point(6, (cbx.Height - cbx.Font.Height) / 2), cbx.ForeColor, TextFormatFlags.NoPadding);
-                            TextRenderer.DrawText(cg, "▾", cbx.Font, new Point(cbx.Width - 18, (cbx.Height - cbx.Font.Height) / 2), _theme.TextMuted, TextFormatFlags.NoPadding);
-                        }
-                    }
-                    using var g = Graphics.FromImage(bmp);
-                    g.SetClip(visibleClip);
-                    g.DrawImageUnscaled(cb, pt);
-                }
-                if (c.HasChildren) Walk(c, pt, visibleClip);
-            }
-        }
-        using (var g0 = Graphics.FromImage(bmp)) g0.Clear(root.BackColor);
-        Walk(root, Point.Empty, new Rectangle(0, 0, root.Width, root.Height));
-        return bmp;
+        PreviewExporter.ExportPreviews(this, outDir);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)

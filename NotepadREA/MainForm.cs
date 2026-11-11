@@ -129,6 +129,9 @@ public sealed class MainForm : Form
             Item("Salva t&utto", SaveAll, Keys.Control | Keys.Shift | Keys.S),
             Item("Rinomina...", () => Rename(Current)),
             Sep(),
+            Item("Stampa...", () => { if (Current != null) PrintHelper.Print(Current, this, false); }, Keys.Control | Keys.Alt | Keys.P),
+            Item("Anteprima di stampa...", () => { if (Current != null) PrintHelper.Print(Current, this, true); }),
+            Sep(),
             Item("C&hiudi", () => CloseDocument(Current), Keys.Control | Keys.W),
             Item("Chiudi tutto", () => CloseMany(Docs.ToList()), Keys.Control | Keys.Shift | Keys.W),
             Item("Chiudi tutto tranne il documento corrente", () => CloseMany(Docs.Where(d => d != Current).ToList())),
@@ -212,6 +215,7 @@ public sealed class MainForm : Form
             Item("Trova (volatile) successivo", () => QuickFind(true), Keys.Control | Keys.F3),
             Item("Trova (volatile) precedente", () => QuickFind(false), Keys.Control | Keys.Shift | Keys.F3),
             Item("&Sostituisci...", () => _findPanel.Open(true), Keys.Control | Keys.H),
+            Item("Trova nei file...", OpenFindInFiles, Keys.Control | Keys.Shift | Keys.F),
             Item("Cancella evidenziazioni", _findPanel.ClearMarks),
             Sep(),
             Item("&Vai alla riga...", GotoLineDialog, Keys.Control | Keys.G),
@@ -277,6 +281,12 @@ public sealed class MainForm : Form
             _miSnapshot.Enabled = _settings.RestoreSession;
         };
 
+        var macro = Sub("&Macro",
+            Item("Avvia registrazione", () => MacroManager.Instance.StartRecording(Current), Keys.Control | Keys.Shift | Keys.R),
+            Item("Ferma registrazione", () => MacroManager.Instance.StopRecording(Current)),
+            Item("Riproduci macro", () => MacroManager.Instance.Play(Current, 1), Keys.Control | Keys.Shift | Keys.P),
+            Item("Esegui macro N volte...", RunMacroMultipleTimes));
+
         var tools = Sub("Strume&nti",
             Item("Hash MD5 / SHA-256 della selezione o del documento", ShowHashes),
             Item("Statistiche documento", ShowSummary));
@@ -299,7 +309,7 @@ public sealed class MainForm : Form
                 "Motore di editing: Scintilla + Lexilla (gli stessi componenti identificati nel binario originale).\n\n" +
                 "Non contiene codice di Notepad++.", "Informazioni", MessageBoxButtons.OK, MessageBoxIcon.Information), Keys.F1));
 
-        _menu.Items.AddRange([file, edit, search, view, _encMenu, _langMenu, settings, tools, window, help]);
+        _menu.Items.AddRange([file, edit, search, view, _encMenu, _langMenu, settings, macro, tools, window, help]);
         edit.DropDownOpening += (_, _) => _miReadOnly.Checked = Current?.IsReadOnly == true;
     }
 
@@ -486,12 +496,18 @@ public sealed class MainForm : Form
             doc.Load(path, CurrentTheme, _settings.FontName, _settings.FontSize);
             ApplyViewSettings(doc);
             _strip.Select(doc);
+            if (doc.WasDetectedAsBinary)
+            {
+                MessageBox.Show(this, $"\"{Path.GetFileName(path)}\" contiene caratteri null o sequenze binarie.\nÈ stato aperto in modalità Sola Lettura per proteggere l'integrità del file.",
+                    "File binario", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
             _settings.AddRecent(path);
             OnActiveDocChanged();
             return doc;
         }
         catch (Exception ex)
         {
+            Log.Error($"Impossibile aprire {path}", ex);
             MessageBox.Show(this, $"Impossibile aprire \"{path}\":\n{ex.Message}", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return null;
         }
@@ -507,11 +523,61 @@ public sealed class MainForm : Form
             DeleteBackup(doc);
             return true;
         }
+        catch (UnauthorizedAccessException uEx)
+        {
+            Log.Warn($"Permessi insufficienti per {doc.FilePath}", uEx);
+            if (MessageBox.Show(this,
+                    $"Permessi insufficienti per salvare \"{doc.FilePath}\".\nVuoi riprovare eseguendo il salvataggio con privilegi di amministratore?",
+                    "Accesso negato - Salva come Amministratore", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                if (SaveElevated(doc))
+                {
+                    DeleteBackup(doc);
+                    return true;
+                }
+            }
+            return false;
+        }
         catch (Exception ex)
         {
+            Log.Error($"Impossibile salvare {doc.FilePath}", ex);
             MessageBox.Show(this, $"Impossibile salvare \"{doc.FilePath}\":\n{ex.Message}", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return false;
         }
+    }
+
+    bool SaveElevated(Document doc)
+    {
+        try
+        {
+            string tmp = Path.Combine(Path.GetTempPath(), $"NotepadREA_elev_{Guid.NewGuid():N}.tmp");
+            File.WriteAllBytes(tmp, TextCodec.Encode(doc.Editor.Text, doc.Encoding));
+            var psi = new System.Diagnostics.ProcessStartInfo(Application.ExecutablePath, $"--elevated-save \"{tmp}\" \"{doc.FilePath}\"")
+            {
+                Verb = "runas",
+                UseShellExecute = true,
+            };
+            var p = System.Diagnostics.Process.Start(psi);
+            p?.WaitForExit();
+            if (p?.ExitCode == 0)
+            {
+                doc.AcknowledgeDiskState();
+                doc.Editor.SetSavePoint();
+                doc.RaiseState();
+                return true;
+            }
+        }
+        catch (System.ComponentModel.Win32Exception wEx) when (wEx.NativeErrorCode == 1223)
+        {
+            // Richiesta UAC annullata dall'utente
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Errore salvataggio elevato", ex);
+            MessageBox.Show(this, $"Errore durante il salvataggio con privilegi elevati:\n{ex.Message}", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        return false;
     }
 
     bool SaveAs(Document? doc)
@@ -721,10 +787,11 @@ public sealed class MainForm : Form
         d.BackupFile = null;
     }
 
-    /// <summary>Scrive i backup dei buffer modificati e la sessione corrente. Chiamato a intervalli regolari e alla chiusura.</summary>
+    /// <summary>Scrive i backup dei buffer modificati e la sessione corrente in modo asincrono.</summary>
     void SnapshotNow()
     {
         if (!SnapshotActive) return;
+        var toWrite = new List<(string path, string text)>();
         try
         {
             Directory.CreateDirectory(Settings.BackupDir);
@@ -735,14 +802,37 @@ public sealed class MainForm : Form
                     if (d.BackupFile is null || d.DirtySinceBackup || !File.Exists(BackupPath(d.BackupFile)))
                     {
                         d.BackupFile ??= $"{(d.FilePath is { } p ? Path.GetFileName(p) : d.DisplayName)}@{Guid.NewGuid():N}.bak";
-                        File.WriteAllText(BackupPath(d.BackupFile), d.Editor.Text, new System.Text.UTF8Encoding(false));
+                        toWrite.Add((BackupPath(d.BackupFile), d.Editor.Text));
                         d.DirtySinceBackup = false;
                     }
                 }
                 else DeleteBackup(d);
             }
         }
-        catch { /* disco pieno o permessi: riprova al prossimo giro */ }
+        catch (Exception ex)
+        {
+            Log.Warn("Errore preparazione snapshot", ex);
+        }
+
+        if (toWrite.Count > 0)
+        {
+            Task.Run(() =>
+            {
+                foreach (var (path, text) in toWrite)
+                {
+                    try
+                    {
+                        string tmp = path + ".tmp";
+                        File.WriteAllText(tmp, text, new System.Text.UTF8Encoding(false));
+                        File.Move(tmp, path, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn($"Errore scrittura backup {path}", ex);
+                    }
+                }
+            });
+        }
         StoreSession(includeBackups: true);
     }
 
@@ -958,9 +1048,43 @@ public sealed class MainForm : Form
         _stLang.Text = d.Language.Name;
         _stLen.Text = $"lunghezza: {e.TextLength:N0}   righe: {e.Lines.Count:N0}";
         _stPos.Text = $"Rg {line + 1:N0}, Col {col + 1:N0}" + (sel > 0 ? $"  ({sel:N0} sel.)" : "") + (e.Selections.Count > 1 ? $"  [{e.Selections.Count} cursori]" : "");
-        _stEol.Text = e.EolMode switch { Eol.CrLf => "Windows (CR LF)", Eol.Lf => "Unix (LF)", _ => "Macintosh (CR)" };
+        _stEol.Text = (e.EolMode switch { Eol.CrLf => "Windows (CR LF)", Eol.Lf => "Unix (LF)", _ => "Macintosh (CR)" }) + (d.HasMixedEol ? " (misti)" : "");
         _stEnc.Text = Document.EncodingLabel(d.Encoding);
         _stIns.Text = e.Overtype ? "SSC" : "INS";
+    }
+
+    void OpenFindInFiles()
+    {
+        string dir = Current?.FilePath != null ? Path.GetDirectoryName(Current.FilePath)! : Directory.GetCurrentDirectory();
+        string? text = Current?.Editor.SelectedText;
+        var form = new FindInFilesForm(dir, string.IsNullOrWhiteSpace(text) ? null : text);
+        form.ResultSelected += (res) =>
+        {
+            var doc = OpenFile(res.FilePath);
+            if (doc != null)
+            {
+                doc.GotoLine(res.LineNumber - 1);
+                if (res.MatchIndex >= 0 && res.MatchLength > 0)
+                {
+                    doc.Editor.SetSelection(res.MatchIndex + res.MatchLength, res.MatchIndex);
+                }
+            }
+        };
+        form.Show(this);
+    }
+
+    void RunMacroMultipleTimes()
+    {
+        if (Current == null || MacroManager.Instance.Steps.Count == 0)
+        {
+            MessageBox.Show(this, "Nessuna macro registrata da eseguire.", "Macro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var input = Microsoft.VisualBasic.Interaction.InputBox("Quante volte eseguire la macro?", "Esegui macro", "5");
+        if (int.TryParse(input, out int times) && times > 0)
+        {
+            MacroManager.Instance.Play(Current, times);
+        }
     }
 
     // =====================================================================

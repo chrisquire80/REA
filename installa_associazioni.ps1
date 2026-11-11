@@ -20,7 +20,7 @@ if (Test-Path $srcIco) { Copy-Item $srcIco $icoFile -Force }
 
 $progId = 'NotepadREA.Document'
 $open   = "`"$exe`" `"%1`""
-$icon   = if (Test-Path $icoFile) { "`"$icoFile`",0" } else { "`"$exe`",0" }
+$icon   = if (Test-Path $icoFile) { "`"$icoFile`"" } else { "`"$exe`",0" }
 $ext = '.txt','.log','.ini','.cfg','.conf','.config','.json','.xml','.md','.markdown','.csv','.yml','.yaml','.toml',
        '.properties','.nfo','.ps1','.psm1','.psd1','.bat','.cmd','.py','.js','.mjs','.ts','.css','.scss','.html','.htm',
        '.sql','.cs','.c','.cpp','.h','.hpp','.java','.sh','.editorconfig','.gitignore','.env'

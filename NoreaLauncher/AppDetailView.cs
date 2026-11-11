@@ -16,9 +16,12 @@ public sealed class AppDetailView : Panel
     readonly Button _btnOpenMain = new() { Height = 36, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
     readonly Button _btnOpenSplit = new() { Width = 32, Height = 36, FlatStyle = FlatStyle.Flat, Text = "▾", Cursor = Cursors.Hand };
     readonly Button _btnAnalysis = new() { Height = 36, FlatStyle = FlatStyle.Flat, Text = "Report Analisi", Cursor = Cursors.Hand };
-    readonly Button _btnMore = new() { Width = 36, Height = 36, FlatStyle = FlatStyle.Flat, Text = "···", Cursor = Cursors.Hand };
+    readonly Button _btnMore = new() { Width = 36, Height = 36, FlatStyle = FlatStyle.Flat, Text = "", Cursor = Cursors.Hand };
 
     public event EventHandler<AppEntry>? OpenRequested;
+    public event EventHandler<AppEntry>? InstallRequested;
+    public event EventHandler<AppEntry>? UpdateRequested;
+    public event EventHandler<AppEntry>? UninstallRequested;
     public event EventHandler<AppEntry>? OpenAsAdminRequested;
     public event EventHandler<AppEntry>? OpenCustomArgsRequested;
     public event EventHandler<AppEntry>? StopProcessRequested;
@@ -44,14 +47,28 @@ public sealed class AppDetailView : Panel
 
         _btnOpenMain.Click += (_, _) =>
         {
-            if (_app == null) return;
+            if (_app == null || _app.IsOperating) return;
             if (_app.IsRunning) StopProcessRequested?.Invoke(this, _app);
-            else OpenRequested?.Invoke(this, _app);
+            else if (_app.HasUpdate) UpdateRequested?.Invoke(this, _app);
+            else if (_app.IsInstalled) OpenRequested?.Invoke(this, _app);
+            else InstallRequested?.Invoke(this, _app);
         };
 
         _btnOpenSplit.Click += (_, _) => ShowSplitMenu();
         _btnAnalysis.Click += (_, _) => { if (_app != null) AnalysisRequested?.Invoke(this, _app); };
         _btnMore.Click += (_, _) => ShowMoreMenu();
+        _btnMore.Paint += (_, e) =>
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using var b = new SolidBrush(_btnMore.ForeColor);
+            int cy = _btnMore.Height / 2;
+            int cx = _btnMore.Width / 2;
+            int r = 2;
+            g.FillEllipse(b, cx - 7 - r, cy - r, r * 2, r * 2);
+            g.FillEllipse(b, cx - r, cy - r, r * 2, r * 2);
+            g.FillEllipse(b, cx + 7 - r, cy - r, r * 2, r * 2);
+        };
 
         _actionsBar.Controls.AddRange([_btnOpenMain, _btnOpenSplit, _btnAnalysis, _btnMore]);
         _actionsBar.Resize += (_, _) => LayoutActions();
@@ -106,18 +123,35 @@ public sealed class AppDetailView : Panel
         _actionsBar.BackColor = _theme.CardBg;
 
         bool isRunning = _app?.IsRunning == true;
+        bool isOperating = _app?.IsOperating == true;
 
-        if (isRunning)
+        if (isOperating)
+        {
+            _btnOpenMain.Text = "Installazione in corso...";
+            _btnOpenMain.BackColor = _theme.SecondaryBtnBg;
+            _btnOpenMain.ForeColor = _theme.TextMuted;
+            _btnOpenMain.Enabled = false;
+        }
+        else if (isRunning)
         {
             _btnOpenMain.Text = "In esecuzione (Stop)";
             _btnOpenMain.BackColor = _theme.StatusCoral;
             _btnOpenMain.ForeColor = Color.White;
+            _btnOpenMain.Enabled = true;
+        }
+        else if (_app?.HasUpdate == true)
+        {
+            _btnOpenMain.Text = "Aggiorna";
+            _btnOpenMain.BackColor = _theme.BrandBlue;
+            _btnOpenMain.ForeColor = Color.Black;
+            _btnOpenMain.Enabled = true;
         }
         else
         {
             _btnOpenMain.Text = _app?.IsInstalled == true ? "Apri" : "Installa";
             _btnOpenMain.BackColor = _theme.PrimaryBtnBg;
             _btnOpenMain.ForeColor = _theme.PrimaryBtnFg;
+            _btnOpenMain.Enabled = true;
         }
         _btnOpenMain.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
 
@@ -219,7 +253,7 @@ public sealed class AppDetailView : Panel
         }
 
         string rawBinPath = _app.InstalledExePath ?? _app.DistExePath ?? "Non compilato";
-        string sanitizedPath = AnonymizePath(rawBinPath);
+        string sanitizedPath = LauncherUtil.AnonymizePath(rawBinPath);
 
         Row("Stato installazione:", _app.IsInstalled ? "Installato localmente" : "Pronto per l'installazione");
         Row("Percorso binario:", sanitizedPath, true);
@@ -228,28 +262,28 @@ public sealed class AppDetailView : Panel
         Row("Integrità binario:", !string.IsNullOrEmpty(_app.Sha256Short) ? $"SHA-256: {_app.Sha256Short}" : "Verifica integrità disponibile", true);
         y += 156;
 
-        // 3. Esito Analisi Statica REA
-        TextRenderer.DrawText(g, "Esito Analisi Statica (Notepad++ 8.9.8.1 Portable)", h2Font, new Point(left, y), _theme.TextPrimary);
-        y += 24;
-
-        var analysisBox = new RectangleF(left, y, contentW, 110);
-        using var aPath = GraphicsHelper.RoundRect(analysisBox, 6f);
-        using (var b = new SolidBrush(_theme.CardBg)) g.FillPath(b, aPath);
-        using (var p = new Pen(_theme.Border)) g.DrawPath(p, aPath);
-
-        int ay = y + 12;
-        int ax = left + 16;
-        void ARow(string k, string v)
+        // 3. Esito Analisi Statica (se presente nei metadati dell'app)
+        if (_app.Analysis != null && _app.Analysis.Rows.Count > 0)
         {
-            TextRenderer.DrawText(g, k, monoSmall, new Point(ax, ay), _theme.BrandBlue);
-            TextRenderer.DrawText(g, v, bodyFont, new Point(ax + 195, ay), _theme.TextSecondary);
-            ay += 22;
-        }
+            y += 28;
+            TextRenderer.DrawText(g, _app.Analysis.Title, h2Font, new Point(left, y), _theme.TextPrimary);
+            y += 28;
 
-        ARow("Target analizzato:", "notepad++.exe (PE32+, AMD64, 8.5 MB, Authenticode firmato)");
-        ARow("Motore individuato:", "Scintilla + Lexilla linkati staticamente (nessuna DLL esterna)");
-        ARow("Hardening:", "Control Flow Guard attivo, Security Cookie /GS presente");
-        ARow("Ricostruzione NOREA:", "C# .NET 10 WinForms con Scintilla5.NET (zero codice sorgente Notepad++)");
+            int boxH = Math.Max(70, _app.Analysis.Rows.Count * 23 + 20);
+            var analysisBox = new RectangleF(left, y, contentW, boxH);
+            using var aPath = GraphicsHelper.RoundRect(analysisBox, 6f);
+            using (var b = new SolidBrush(_theme.CardBg)) g.FillPath(b, aPath);
+            using (var p = new Pen(_theme.Border)) g.DrawPath(p, aPath);
+
+            int ay = y + 12;
+            int ax = left + 16;
+            foreach (var row in _app.Analysis.Rows)
+            {
+                TextRenderer.DrawText(g, row.Label, monoSmall, new Point(ax, ay), _theme.BrandBlue);
+                TextRenderer.DrawText(g, row.Value, bodyFont, new Point(ax + 195, ay), _theme.TextSecondary);
+                ay += 22;
+            }
+        }
     }
 
     void OnActionsBarPaint(object? sender, PaintEventArgs e)
@@ -258,25 +292,6 @@ public sealed class AppDetailView : Panel
         g.Clear(_theme.CardBg);
         using var p = new Pen(_theme.Border);
         g.DrawLine(p, 0, 0, _actionsBar.Width, 0);
-    }
-
-    static string AnonymizePath(string path)
-    {
-        if (string.IsNullOrEmpty(path)) return path;
-        string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrEmpty(userProfile) && path.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase))
-        {
-            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (path.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase))
-                return "%LocalAppData%" + path[localAppData.Length..];
-
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (path.StartsWith(appData, StringComparison.OrdinalIgnoreCase))
-                return "%AppData%" + path[appData.Length..];
-
-            return "%UserProfile%" + path[userProfile.Length..];
-        }
-        return path;
     }
 
     void ShowSplitMenu()
@@ -301,6 +316,12 @@ public sealed class AppDetailView : Panel
         {
             cm.Items.Add(new ToolStripSeparator());
             cm.Items.Add("Rollback alla versione precedente", null, (_, _) => RollbackRequested?.Invoke(this, _app));
+        }
+
+        if (_app.IsInstalled)
+        {
+            cm.Items.Add(new ToolStripSeparator());
+            cm.Items.Add("Disinstalla applicazione...", null, (_, _) => UninstallRequested?.Invoke(this, _app));
         }
 
         cm.Show(_btnMore, new Point(0, _btnMore.Height));

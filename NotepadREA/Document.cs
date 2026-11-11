@@ -3,8 +3,6 @@ using ScintillaNET;
 
 namespace NotepadREA;
 
-public enum FileEncoding { Ansi, Utf8, Utf8Bom, Utf16Le, Utf16Be }
-
 /// <summary>Un documento aperto: il suo editor Scintilla e i metadati del file.</summary>
 public sealed class Document : UserControl
 {
@@ -20,6 +18,8 @@ public sealed class Document : UserControl
     public Language Language { get; private set; } = Languages.Normal;
     public DateTime LastWriteUtc { get; private set; }
     public string DisplayName { get; private set; }
+    public bool HasMixedEol { get; private set; }
+    public bool WasDetectedAsBinary { get; private set; }
 
     /// <summary>File di backup (sessione/recupero) associato a questo buffer.</summary>
     public string? BackupFile { get; set; }
@@ -63,6 +63,28 @@ public sealed class Document : UserControl
     public void MarkDirty() { _forcedDirty = true; RaiseState(); }
 
     public void RaiseState() => StateChanged?.Invoke(this, EventArgs.Empty);
+
+    protected override void WndProc(ref Message m)
+    {
+        const int WM_NOTIFY = 0x004E;
+        if (m.Msg == WM_NOTIFY && m.LParam != IntPtr.Zero)
+        {
+            try
+            {
+                int code = System.Runtime.InteropServices.Marshal.ReadInt32(m.LParam, IntPtr.Size * 2);
+                if (code == 2009) // SCN_MACRORECORD
+                {
+                    int msgOffset = IntPtr.Size == 8 ? 56 : 28;
+                    int msg = System.Runtime.InteropServices.Marshal.ReadInt32(m.LParam, msgOffset);
+                    UIntPtr w = (UIntPtr)(ulong)System.Runtime.InteropServices.Marshal.ReadInt64(m.LParam, msgOffset + IntPtr.Size);
+                    IntPtr l = System.Runtime.InteropServices.Marshal.ReadIntPtr(m.LParam, msgOffset + IntPtr.Size * 2);
+                    MacroManager.Instance.RecordStep(msg, w, l);
+                }
+            }
+            catch { }
+        }
+        base.WndProc(ref m);
+    }
 
     void ConfigureEditor()
     {
@@ -277,17 +299,19 @@ public sealed class Document : UserControl
     public new void Load(string path, Theme theme, string font, int size)
     {
         var bytes = File.ReadAllBytes(path);
-        (string text, FileEncoding enc) = Decode(bytes);
+        WasDetectedAsBinary = TextCodec.LooksBinary(bytes);
+        (string text, FileEncoding enc) = TextCodec.Decode(bytes);
         Encoding = enc;
+        HasMixedEol = TextCodec.HasMixedEol(text);
         FilePath = Path.GetFullPath(path);
         DisplayName = Path.GetFileName(path);
         LastWriteUtc = File.GetLastWriteTimeUtc(path);
         _forcedDirty = false;
         MissingAcknowledged = false;
 
-        Editor.ReadOnly = false;
+        Editor.ReadOnly = WasDetectedAsBinary;
         Editor.Text = text;
-        Editor.EolMode = DetectEol(text);
+        Editor.EolMode = TextCodec.DetectEol(text);
         Editor.EmptyUndoBuffer();
         Editor.SetSavePoint();
         DirtySinceBackup = false;
@@ -298,8 +322,19 @@ public sealed class Document : UserControl
     {
         if (FilePath is null || MissingOnDisk) return;
         var bytes = File.ReadAllBytes(FilePath);
-        Editor.Text = enc == FileEncoding.Ansi ? Ansi.GetString(bytes) : new UTF8Encoding(false).GetString(bytes);
+        string text = enc switch
+        {
+            FileEncoding.Ansi => TextCodec.SystemAnsi.GetString(bytes),
+            FileEncoding.Utf8 => new System.Text.UTF8Encoding(false).GetString(bytes),
+            FileEncoding.Utf8Bom => new System.Text.UTF8Encoding(false).GetString(bytes.Length >= 3 ? bytes[3..] : bytes),
+            FileEncoding.Utf16Le or FileEncoding.Utf16LeNoBom => System.Text.Encoding.Unicode.GetString(bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE ? bytes[2..] : bytes),
+            FileEncoding.Utf16Be or FileEncoding.Utf16BeNoBom => System.Text.Encoding.BigEndianUnicode.GetString(bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF ? bytes[2..] : bytes),
+            _ => new System.Text.UTF8Encoding(false).GetString(bytes),
+        };
+
+        Editor.Text = text;
         Encoding = enc;
+        HasMixedEol = TextCodec.HasMixedEol(text);
         _forcedDirty = false;
         DirtySinceBackup = false;
         Editor.EmptyUndoBuffer();
@@ -321,7 +356,8 @@ public sealed class Document : UserControl
         }
         Encoding = enc;
         Editor.Text = backupText;
-        Editor.EolMode = DetectEol(backupText);
+        Editor.EolMode = TextCodec.DetectEol(backupText);
+        HasMixedEol = TextCodec.HasMixedEol(backupText);
         Editor.EmptyUndoBuffer(); // azzera anche il punto di salvataggio di Scintilla...
         DirtySinceBackup = false;
         MarkDirty();              // ...quindi il buffer ripristinato va segnato esplicitamente come non salvato
@@ -338,14 +374,36 @@ public sealed class Document : UserControl
 
     public void SaveTo(string path, Theme theme, string font, int size)
     {
-        var bytes = Encode(Editor.Text, Encoding);
-        File.WriteAllBytes(path, bytes);
+        var bytes = TextCodec.Encode(Editor.Text, Encoding);
+        string? dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+        string tmp = path + $".{Guid.NewGuid():N}.tmp";
+        File.WriteAllBytes(tmp, bytes);
+
+        if (File.Exists(path))
+        {
+            try
+            {
+                File.Replace(tmp, path, null);
+            }
+            catch
+            {
+                File.Move(tmp, path, overwrite: true);
+            }
+        }
+        else
+        {
+            File.Move(tmp, path);
+        }
+
         bool langChange = FilePath is null || !string.Equals(Path.GetExtension(FilePath), Path.GetExtension(path), StringComparison.OrdinalIgnoreCase);
         FilePath = Path.GetFullPath(path);
         DisplayName = Path.GetFileName(path);
         LastWriteUtc = File.GetLastWriteTimeUtc(path);
         _forcedDirty = false;
         MissingAcknowledged = false;
+        HasMixedEol = TextCodec.HasMixedEol(Editor.Text);
         Editor.SetSavePoint();
         if (langChange) SetLanguage(Languages.FromPath(path), theme, font, size);
         RaiseState();
@@ -355,49 +413,7 @@ public sealed class Document : UserControl
     public bool MissingOnDisk => FilePath is not null && !File.Exists(FilePath);
     public void AcknowledgeDiskState() { if (FilePath is not null && File.Exists(FilePath)) LastWriteUtc = File.GetLastWriteTimeUtc(FilePath); }
 
-    static Eol DetectEol(string text)
-    {
-        int i = text.IndexOfAny(['\r', '\n']);
-        if (i < 0) return Eol.CrLf;
-        if (text[i] == '\n') return Eol.Lf;
-        return i + 1 < text.Length && text[i + 1] == '\n' ? Eol.CrLf : Eol.Cr;
-    }
-
-    public static (string, FileEncoding) Decode(byte[] b)
-    {
-        if (b.Length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) return (new UTF8Encoding(false).GetString(b, 3, b.Length - 3), FileEncoding.Utf8Bom);
-        if (b.Length >= 2 && b[0] == 0xFF && b[1] == 0xFE) return (System.Text.Encoding.Unicode.GetString(b, 2, b.Length - 2), FileEncoding.Utf16Le);
-        if (b.Length >= 2 && b[0] == 0xFE && b[1] == 0xFF) return (System.Text.Encoding.BigEndianUnicode.GetString(b, 2, b.Length - 2), FileEncoding.Utf16Be);
-        try
-        {
-            var strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
-            return (strict.GetString(b), FileEncoding.Utf8);
-        }
-        catch (DecoderFallbackException)
-        {
-            return (Ansi.GetString(b), FileEncoding.Ansi);
-        }
-    }
-
-    public static byte[] Encode(string text, FileEncoding enc) => enc switch
-    {
-        FileEncoding.Ansi => Ansi.GetBytes(text),
-        FileEncoding.Utf8 => new UTF8Encoding(false).GetBytes(text),
-        FileEncoding.Utf8Bom => [.. new byte[] { 0xEF, 0xBB, 0xBF }, .. new UTF8Encoding(false).GetBytes(text)],
-        FileEncoding.Utf16Le => [.. new byte[] { 0xFF, 0xFE }, .. System.Text.Encoding.Unicode.GetBytes(text)],
-        FileEncoding.Utf16Be => [.. new byte[] { 0xFE, 0xFF }, .. System.Text.Encoding.BigEndianUnicode.GetBytes(text)],
-        _ => throw new ArgumentOutOfRangeException(nameof(enc)),
-    };
-
-    public static System.Text.Encoding Ansi => System.Text.Encoding.GetEncoding(1252);
-
-    public static string EncodingLabel(FileEncoding e) => e switch
-    {
-        FileEncoding.Ansi => "ANSI",
-        FileEncoding.Utf8 => "UTF-8",
-        FileEncoding.Utf8Bom => "UTF-8-BOM",
-        FileEncoding.Utf16Le => "UTF-16 LE BOM",
-        FileEncoding.Utf16Be => "UTF-16 BE BOM",
-        _ => "?",
-    };
+    public static (string, FileEncoding) Decode(byte[] b) => TextCodec.Decode(b);
+    public static byte[] Encode(string text, FileEncoding enc) => TextCodec.Encode(text, enc);
+    public static string EncodingLabel(FileEncoding e) => TextCodec.EncodingLabel(e);
 }
