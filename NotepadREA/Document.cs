@@ -223,29 +223,45 @@ public sealed class Document : UserControl
         var e = Editor;
         if (!_smartHighlight)
         {
-            e.IndicatorCurrent = SmartIndicator;
-            e.IndicatorClearRange(0, e.TextLength);
+            if (_lastSmart != null)
+            {
+                e.IndicatorCurrent = SmartIndicator;
+                e.IndicatorClearRange(0, e.TextLength);
+                _lastSmart = null;
+                _lastSmartPos = -1;
+            }
             return;
         }
+
         string? word = null;
         int s = e.SelectionStart, en = e.SelectionEnd;
-        if (en > s && en - s <= 200 && e.Selections.Count == 1 && e.TextLength < 20_000_000)
+        if (en > s && en - s <= 100 && e.Selections.Count == 1 && e.TextLength < 2_000_000)
         {
             var text = e.SelectedText;
             if (text.Length > 0 && text.All(c => char.IsLetterOrDigit(c) || c == '_')
                 && e.WordStartPosition(s, true) == s && e.WordEndPosition(en, true) == en)
                 word = text;
         }
+
+        // Fast path: se non c'era smart highlight e non c'è parola selezionata, esci subito a costo zero
+        if (word == null && _lastSmart == null) return;
         if (word == _lastSmart && s == _lastSmartPos) return;
+
+        bool hadSmart = _lastSmart != null;
         _lastSmart = word;
         _lastSmartPos = s;
-        e.IndicatorCurrent = SmartIndicator;
-        e.IndicatorClearRange(0, e.TextLength);
+
+        if (hadSmart || word != null)
+        {
+            e.IndicatorCurrent = SmartIndicator;
+            e.IndicatorClearRange(0, e.TextLength);
+        }
+
         if (word is null) return;
 
         e.SearchFlags = SearchFlags.MatchCase | SearchFlags.WholeWord;
         int start = 0, count = 0;
-        while (count < 5000)
+        while (count < 1000)
         {
             e.TargetStart = start;
             e.TargetEnd = e.TextLength;
@@ -309,13 +325,17 @@ public sealed class Document : UserControl
         _forcedDirty = false;
         MissingAcknowledged = false;
 
+        bool isLarge = bytes.Length > 2_000_000;
+        Editor.ScrollWidthTracking = !isLarge;
+        Editor.AutomaticFold = isLarge ? 0 : (AutomaticFold.Show | AutomaticFold.Click | AutomaticFold.Change);
+
         Editor.ReadOnly = WasDetectedAsBinary;
         Editor.Text = text;
         Editor.EolMode = TextCodec.DetectEol(text);
         Editor.EmptyUndoBuffer();
         Editor.SetSavePoint();
         DirtySinceBackup = false;
-        SetLanguage(Languages.FromPath(path), theme, font, size);
+        SetLanguage(isLarge ? Languages.Normal : Languages.FromPath(path), theme, font, size);
     }
 
     public void Reinterpret(FileEncoding enc)

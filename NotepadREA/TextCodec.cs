@@ -18,6 +18,8 @@ public enum FileEncoding
 public static class TextCodec
 {
     static Encoding? _ansiEncoding;
+    static readonly UTF8Encoding Utf8Silent = new(false, false);
+    static readonly UTF8Encoding Utf8Strict = new(false, true);
 
     public static Encoding SystemAnsi
     {
@@ -97,7 +99,7 @@ public static class TextCodec
 
         // BOM checks
         if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-            return (new UTF8Encoding(false).GetString(bytes, 3, bytes.Length - 3), FileEncoding.Utf8Bom);
+            return (Utf8Silent.GetString(bytes, 3, bytes.Length - 3), FileEncoding.Utf8Bom);
 
         if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
             return (Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2), FileEncoding.Utf16Le);
@@ -115,8 +117,7 @@ public static class TextCodec
         // Strict UTF-8
         try
         {
-            var strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
-            return (strict.GetString(bytes), FileEncoding.Utf8);
+            return (Utf8Strict.GetString(bytes), FileEncoding.Utf8);
         }
         catch (DecoderFallbackException)
         {
@@ -124,17 +125,46 @@ public static class TextCodec
         }
     }
 
-    public static byte[] Encode(string text, FileEncoding enc) => enc switch
+    public static byte[] Encode(string text, FileEncoding enc)
     {
-        FileEncoding.Ansi => SystemAnsi.GetBytes(text),
-        FileEncoding.Utf8 => new UTF8Encoding(false).GetBytes(text),
-        FileEncoding.Utf8Bom => [.. new byte[] { 0xEF, 0xBB, 0xBF }, .. new UTF8Encoding(false).GetBytes(text)],
-        FileEncoding.Utf16Le => [.. new byte[] { 0xFF, 0xFE }, .. Encoding.Unicode.GetBytes(text)],
-        FileEncoding.Utf16Be => [.. new byte[] { 0xFE, 0xFF }, .. Encoding.BigEndianUnicode.GetBytes(text)],
-        FileEncoding.Utf16LeNoBom => Encoding.Unicode.GetBytes(text),
-        FileEncoding.Utf16BeNoBom => Encoding.BigEndianUnicode.GetBytes(text),
-        _ => new UTF8Encoding(false).GetBytes(text),
-    };
+        switch (enc)
+        {
+            case FileEncoding.Ansi:
+                return SystemAnsi.GetBytes(text);
+            case FileEncoding.Utf8:
+                return Utf8Silent.GetBytes(text);
+            case FileEncoding.Utf8Bom:
+            {
+                var payload = Utf8Silent.GetBytes(text);
+                var res = new byte[payload.Length + 3];
+                res[0] = 0xEF; res[1] = 0xBB; res[2] = 0xBF;
+                Buffer.BlockCopy(payload, 0, res, 3, payload.Length);
+                return res;
+            }
+            case FileEncoding.Utf16Le:
+            {
+                var payload = Encoding.Unicode.GetBytes(text);
+                var res = new byte[payload.Length + 2];
+                res[0] = 0xFF; res[1] = 0xFE;
+                Buffer.BlockCopy(payload, 0, res, 2, payload.Length);
+                return res;
+            }
+            case FileEncoding.Utf16Be:
+            {
+                var payload = Encoding.BigEndianUnicode.GetBytes(text);
+                var res = new byte[payload.Length + 2];
+                res[0] = 0xFE; res[1] = 0xFF;
+                Buffer.BlockCopy(payload, 0, res, 2, payload.Length);
+                return res;
+            }
+            case FileEncoding.Utf16LeNoBom:
+                return Encoding.Unicode.GetBytes(text);
+            case FileEncoding.Utf16BeNoBom:
+                return Encoding.BigEndianUnicode.GetBytes(text);
+            default:
+                return Utf8Silent.GetBytes(text);
+        }
+    }
 
     public static Eol DetectEol(string text)
     {

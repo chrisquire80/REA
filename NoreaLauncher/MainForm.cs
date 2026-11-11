@@ -38,7 +38,7 @@ public sealed class MainForm : Form
     string _activeFilter = "ALL"; // "ALL", "INSTALLED", "READY"
     Rectangle _chipInstalledRect, _chipReadyRect, _chipTotalRect;
 
-    readonly System.Windows.Forms.Timer _procTimer = new() { Interval = 2000 };
+    readonly System.Windows.Forms.Timer _procTimer = new() { Interval = 3000 };
     readonly NotifyIcon _trayIcon;
     readonly ContextMenuStrip _trayMenu = new();
 
@@ -149,6 +149,7 @@ public sealed class MainForm : Form
 
     void CheckProcessStatus()
     {
+        if (WindowState == FormWindowState.Minimized || !Visible) return;
         if (CatalogService.RefreshRunningProcesses(_apps))
         {
             _detailView.SetApp(_selectedApp, _theme);
@@ -577,7 +578,26 @@ public sealed class MainForm : Form
         {
             var psi = new ProcessStartInfo(exe) { UseShellExecute = true };
             if (runAsAdmin) psi.Verb = "runas";
-            Process.Start(psi);
+            var p = Process.Start(psi);
+            if (p != null)
+            {
+                app.IsRunning = true;
+                app.RunningPid = p.Id;
+                try
+                {
+                    p.EnableRaisingEvents = true;
+                    p.Exited += (_, _) =>
+                    {
+                        try
+                        {
+                            if (IsHandleCreated && !IsDisposed)
+                                BeginInvoke(() => { app.IsRunning = false; app.RunningPid = null; CheckProcessStatus(); });
+                        }
+                        catch { }
+                    };
+                }
+                catch { }
+            }
             _infoBar.ShowMessage($"{app.DisplayName} avviato con successo.", InfoBarControl.BarType.Success, _theme);
             CheckProcessStatus();
         }
@@ -597,7 +617,26 @@ public sealed class MainForm : Form
 
         try
         {
-            Process.Start(new ProcessStartInfo(exe, input) { UseShellExecute = true });
+            var p = Process.Start(new ProcessStartInfo(exe, input) { UseShellExecute = true });
+            if (p != null)
+            {
+                app.IsRunning = true;
+                app.RunningPid = p.Id;
+                try
+                {
+                    p.EnableRaisingEvents = true;
+                    p.Exited += (_, _) =>
+                    {
+                        try
+                        {
+                            if (IsHandleCreated && !IsDisposed)
+                                BeginInvoke(() => { app.IsRunning = false; app.RunningPid = null; CheckProcessStatus(); });
+                        }
+                        catch { }
+                    };
+                }
+                catch { }
+            }
             _infoBar.ShowMessage($"{app.DisplayName} avviato con argomenti: {input}", InfoBarControl.BarType.Info, _theme);
             CheckProcessStatus();
         }

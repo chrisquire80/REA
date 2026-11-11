@@ -18,6 +18,17 @@ public sealed class AppDetailView : Panel
     readonly Button _btnAnalysis = new() { Height = 36, FlatStyle = FlatStyle.Flat, Text = "Report Analisi", Cursor = Cursors.Hand };
     readonly Button _btnMore = new() { Width = 36, Height = 36, FlatStyle = FlatStyle.Flat, Text = "", Cursor = Cursors.Hand };
 
+    static readonly Font TitleFont = new("Segoe UI", 16f, FontStyle.Bold);
+    static readonly Font SubtitleFont = new("Segoe UI", 9.5f);
+    static readonly Font MonoBadgeFont = new("Consolas", 8.5f, FontStyle.Bold);
+    static readonly Font H2Font = new("Segoe UI", 10.5f, FontStyle.Bold);
+    static readonly Font BodyFont = new("Segoe UI", 9.5f);
+    static readonly Font MonoSmallFont = new("Consolas", 8.5f);
+    static readonly Font EmptyPromptFont = new("Segoe UI", 11f);
+    static readonly Font BtnOpenFont = new("Segoe UI", 9.5f, FontStyle.Bold);
+    static readonly Font BtnAnalysisFont = new("Segoe UI", 9f);
+    static readonly Font BtnMoreFont = new("Segoe UI", 10f, FontStyle.Bold);
+
     public event EventHandler<AppEntry>? OpenRequested;
     public event EventHandler<AppEntry>? InstallRequested;
     public event EventHandler<AppEntry>? UpdateRequested;
@@ -153,7 +164,7 @@ public sealed class AppDetailView : Panel
             _btnOpenMain.ForeColor = _theme.PrimaryBtnFg;
             _btnOpenMain.Enabled = true;
         }
-        _btnOpenMain.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+        _btnOpenMain.Font = BtnOpenFont;
 
         _btnOpenSplit.BackColor = isRunning ? _theme.StatusCoral : _theme.SecondaryBtnBg;
         _btnOpenSplit.ForeColor = isRunning ? Color.White : _theme.SecondaryBtnFg;
@@ -162,12 +173,12 @@ public sealed class AppDetailView : Panel
         _btnAnalysis.BackColor = _theme.SecondaryBtnBg;
         _btnAnalysis.ForeColor = _theme.SecondaryBtnFg;
         _btnAnalysis.FlatAppearance.BorderColor = _theme.BorderStrong;
-        _btnAnalysis.Font = new Font("Segoe UI", 9f);
+        _btnAnalysis.Font = BtnAnalysisFont;
 
         _btnMore.BackColor = _theme.SecondaryBtnBg;
         _btnMore.ForeColor = _theme.SecondaryBtnFg;
         _btnMore.FlatAppearance.BorderColor = _theme.BorderStrong;
-        _btnMore.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+        _btnMore.Font = BtnMoreFont;
 
         LayoutActions();
     }
@@ -190,23 +201,20 @@ public sealed class AppDetailView : Panel
 
         // Titolo & Runtime & Version
         int tx = 96, ty = 22;
-        using var titleFont = new Font("Segoe UI", 16f, FontStyle.Bold);
-        TextRenderer.DrawText(g, _app.DisplayName, titleFont, new Point(tx, ty), _theme.TextPrimary, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, _app.DisplayName, TitleFont, new Point(tx, ty), _theme.TextPrimary, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 
-        var titleSize = TextRenderer.MeasureText(g, _app.DisplayName, titleFont, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        var titleSize = TextRenderer.MeasureText(g, _app.DisplayName, TitleFont, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 
         // Version badge (sobrio e accessibile)
         var verColBg = _app.IsCanary ? _theme.VersionCanaryBg : _theme.VersionStableBg;
         var verColFg = _app.IsCanary ? _theme.VersionCanaryFg : _theme.VersionStableFg;
-        using var monoFont = new Font("Consolas", 8.5f, FontStyle.Bold);
-        GraphicsHelper.DrawPill(g, _app.Version, monoFont, new Point(tx + titleSize.Width + 12, ty + 6), verColBg, verColFg);
+        GraphicsHelper.DrawPill(g, _app.Version, MonoBadgeFont, new Point(tx + titleSize.Width + 12, ty + 6), verColBg, verColFg);
 
         // Runtime / sottotitolo: pulito senza ridondanze
-        using var subFont = new Font("Segoe UI", 9.5f);
         string subtitle = _app.DisplayName == "NotepadREA"
             ? "Editor di testo e codice · .NET 10 (Scintilla/Lexilla)"
             : $"{_app.Tagline} · {_app.Runtime}";
-        TextRenderer.DrawText(g, subtitle, subFont, new Point(tx, ty + 34), _theme.TextSecondary, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, subtitle, SubtitleFont, new Point(tx, ty + 34), _theme.TextSecondary, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
     }
 
     void OnBodyPaint(object? sender, PaintEventArgs e)
@@ -218,7 +226,7 @@ public sealed class AppDetailView : Panel
 
         if (_app == null)
         {
-            TextRenderer.DrawText(g, "Seleziona un'applicazione dalla barra laterale.", new Font("Segoe UI", 11f), new Point(24, 24), _theme.TextMuted);
+            TextRenderer.DrawText(g, "Seleziona un'applicazione dalla barra laterale.", EmptyPromptFont, new Point(24, 24), _theme.TextMuted);
             return;
         }
 
@@ -227,14 +235,10 @@ public sealed class AppDetailView : Panel
         int contentW = _body.Width - 48;
 
         // 1. Descrizione
-        using var h2Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
-        using var bodyFont = new Font("Segoe UI", 9.5f);
-        using var monoSmall = new Font("Consolas", 8.5f);
-
-        TextRenderer.DrawText(g, "Descrizione", h2Font, new Point(left, y), _theme.TextPrimary);
+        TextRenderer.DrawText(g, "Descrizione", H2Font, new Point(left, y), _theme.TextPrimary);
         y += 24;
         var descRect = new Rectangle(left, y, contentW, 40);
-        TextRenderer.DrawText(g, _app.Description, bodyFont, descRect, _theme.TextSecondary, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, _app.Description, BodyFont, descRect, _theme.TextSecondary, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
         y += 46;
 
         // 2. Scheda Informazioni Tecniche (Card)
@@ -247,8 +251,8 @@ public sealed class AppDetailView : Panel
         int cx = left + 16;
         void Row(string label, string val, bool isMono = false)
         {
-            TextRenderer.DrawText(g, label, bodyFont, new Point(cx, cy), _theme.TextMuted);
-            TextRenderer.DrawText(g, val, isMono ? monoSmall : bodyFont, new Point(cx + 195, cy), _theme.TextPrimary, TextFormatFlags.NoPrefix | TextFormatFlags.PathEllipsis);
+            TextRenderer.DrawText(g, label, BodyFont, new Point(cx, cy), _theme.TextMuted);
+            TextRenderer.DrawText(g, val, isMono ? MonoSmallFont : BodyFont, new Point(cx + 195, cy), _theme.TextPrimary, TextFormatFlags.NoPrefix | TextFormatFlags.PathEllipsis);
             cy += 24;
         }
 
@@ -266,7 +270,7 @@ public sealed class AppDetailView : Panel
         if (_app.Analysis != null && _app.Analysis.Rows.Count > 0)
         {
             y += 28;
-            TextRenderer.DrawText(g, _app.Analysis.Title, h2Font, new Point(left, y), _theme.TextPrimary);
+            TextRenderer.DrawText(g, _app.Analysis.Title, H2Font, new Point(left, y), _theme.TextPrimary);
             y += 28;
 
             int boxH = Math.Max(70, _app.Analysis.Rows.Count * 23 + 20);
@@ -279,8 +283,8 @@ public sealed class AppDetailView : Panel
             int ax = left + 16;
             foreach (var row in _app.Analysis.Rows)
             {
-                TextRenderer.DrawText(g, row.Label, monoSmall, new Point(ax, ay), _theme.BrandBlue);
-                TextRenderer.DrawText(g, row.Value, bodyFont, new Point(ax + 195, ay), _theme.TextSecondary);
+                TextRenderer.DrawText(g, row.Label, MonoSmallFont, new Point(ax, ay), _theme.BrandBlue);
+                TextRenderer.DrawText(g, row.Value, BodyFont, new Point(ax + 195, ay), _theme.TextSecondary);
                 ay += 22;
             }
         }

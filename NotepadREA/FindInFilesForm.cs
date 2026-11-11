@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace NotepadREA;
@@ -165,31 +166,46 @@ public sealed class FindInFilesForm : Form
                     regex = new Regex(pattern, ro);
                 }
 
-                foreach (var file in files)
+                var bag = new ConcurrentBag<FindInFilesResult>();
+                int matchedFilesCount = 0;
+
+                Parallel.ForEach(files, new ParallelOptions { CancellationToken = _cts.Token, MaxDegreeOfParallelism = Environment.ProcessorCount }, file =>
                 {
-                    if (_cts.IsCancellationRequested) break;
+                    if (_cts.IsCancellationRequested) return;
 
                     try
                     {
                         var fi = new FileInfo(file);
-                        if (fi.Length > 50 * 1024 * 1024) continue; // Salta file > 50 MB
+                        if (fi.Length > 50 * 1024 * 1024) return; // Salta file > 50 MB
                         byte[] bytes = File.ReadAllBytes(file);
-                        if (TextCodec.LooksBinary(bytes)) continue; // Salta file binari
+                        if (TextCodec.LooksBinary(bytes)) return; // Salta file binari
 
                         var (text, enc) = TextCodec.Decode(bytes);
                         bool modified = false;
+                        int curLine = 1;
+                        int lastScan = 0;
+                        int GetLine(int targetIdx)
+                        {
+                            int end = Math.Min(targetIdx, text.Length);
+                            for (int i = lastScan; i < end; i++)
+                            {
+                                if (text[i] == '\n') curLine++;
+                            }
+                            lastScan = end;
+                            return curLine;
+                        }
 
                         if (isRegex && regex != null)
                         {
                             var matches = regex.Matches(text);
                             if (matches.Count > 0)
                             {
-                                filesMatched++;
+                                Interlocked.Increment(ref matchedFilesCount);
                                 foreach (Match m in matches)
                                 {
-                                    int line = GetLineNumber(text, m.Index);
+                                    int line = GetLine(m.Index);
                                     string lineText = GetLineText(text, m.Index);
-                                    list.Add(new FindInFilesResult
+                                    bag.Add(new FindInFilesResult
                                     {
                                         FilePath = file,
                                         LineNumber = line,
@@ -227,9 +243,9 @@ public sealed class FindInFilesForm : Form
                                 if (ok)
                                 {
                                     fileHadMatch = true;
-                                    int line = GetLineNumber(text, idx);
+                                    int line = GetLine(idx);
                                     string lineText = GetLineText(text, idx);
-                                    list.Add(new FindInFilesResult
+                                    bag.Add(new FindInFilesResult
                                     {
                                         FilePath = file,
                                         LineNumber = line,
@@ -243,7 +259,7 @@ public sealed class FindInFilesForm : Form
 
                             if (fileHadMatch)
                             {
-                                filesMatched++;
+                                Interlocked.Increment(ref matchedFilesCount);
                                 if (isReplace)
                                 {
                                     text = ReplaceString(text, pattern, replaceWith, sc, wholeWord);
@@ -263,9 +279,10 @@ public sealed class FindInFilesForm : Form
                     {
                         Log.Warn($"Errore ricerca nel file {file}", ex);
                     }
-                }
+                });
 
-                return list;
+                filesMatched = matchedFilesCount;
+                return bag.OrderBy(r => r.FilePath).ThenBy(r => r.LineNumber).ToList();
             }, _cts.Token);
 
             totalMatches = results.Count;
