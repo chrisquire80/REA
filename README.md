@@ -52,9 +52,12 @@ dotnet build NOREA.slnx -c Release
 # Esecuzione test unitari
 dotnet test NOREA.Tests\NOREA.Tests.csproj
 
-# Pubblicazione binari standalone single-file in dist\
-dotnet publish NotepadREA\NotepadREA.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -o dist
-dotnet publish NoreaLauncher\NoreaLauncher.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -o dist
+# Pubblicazione binari ad alte prestazioni (avvio istantaneo < 400ms)
+dotnet publish NotepadREA\NotepadREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
+dotnet publish NoreaLauncher\NoreaLauncher.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
+
+# In alternativa, per bundle completamente autonomi senza .NET installato (evitando compressione per rapidità):
+# dotnet publish NotepadREA\NotepadREA.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o dist
 
 # Registrazione associazioni file ed estensioni (.txt, .cs, .py, ecc.)
 .\installa_associazioni.ps1
