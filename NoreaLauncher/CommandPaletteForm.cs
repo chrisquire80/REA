@@ -13,7 +13,7 @@ public sealed class CommandPaletteForm : Form
     public sealed record ActionItem(string Title, string Subtitle, Action Execute);
     readonly List<ActionItem> _items = [];
 
-    public CommandPaletteForm(List<AppEntry> apps, LauncherTheme theme, Action onSyncCatalog, Action onOpenSettings, Action onOpenWorkspace)
+    public CommandPaletteForm(List<AppEntry> apps, LauncherTheme theme, Action onSyncCatalog, Action onOpenSettings, Action onOpenWorkspace, Action? onCheckCloudUpdates = null)
     {
         _apps = apps;
         _theme = theme;
@@ -55,6 +55,10 @@ public sealed class CommandPaletteForm : Form
         _items.Add(new ActionItem("Sincronizza Catalogo", "Ricarica e verifica lo stato dei binari", onSyncCatalog));
         _items.Add(new ActionItem("Apri Cartella Workspace NOREA", "Esplora file di progetto e binari dist/", onOpenWorkspace));
         _items.Add(new ActionItem("Impostazioni Launcher", "Configura lingua, tema e cartella di installazione", onOpenSettings));
+        if (onCheckCloudUpdates != null)
+        {
+            _items.Add(new ActionItem("Controlla Aggiornamenti Cloud (GitHub)", "Verifica la presenza di nuove release online di NOREA", onCheckCloudUpdates));
+        }
 
         var root = new Panel { Dock = DockStyle.Fill, BackColor = _theme.CardBg, Padding = new Padding(12) };
 

@@ -38,6 +38,7 @@ public sealed class SettingsView : UserControl
     public event EventHandler? QuitRequested;
     public event EventHandler? ThemeChanged;
     public event EventHandler? AddAppRequested;
+    public event EventHandler? CheckCloudUpdatesRequested;
 
     public SettingsView(LauncherSettings settings)
     {
@@ -107,6 +108,34 @@ public sealed class SettingsView : UserControl
         _chkHidePlanned.Location = new Point(18, 92);
         _chkHidePlanned.CheckedChanged += (_, _) => SyncBooleans();
         cardApp.Controls.Add(_chkHidePlanned);
+
+        var cardCloud = MakeCard("AGGIORNAMENTI CLOUD (GITHUB)", leftX, 408, colW, 160);
+        cardCloud.Controls.Add(MakeMutedLabel("Repository GitHub per release e aggiornamenti:", 18, 36));
+
+        var repoBox = new Panel { Location = new Point(18, 56), Size = new Size(colW - 36, 28), Padding = new Padding(6, 4, 6, 4) };
+        var tbRepo = new TextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, Text = _settings.GitHubRepo, Font = new Font("Consolas", 9.2f) };
+        tbRepo.TextChanged += (_, _) => { _settings.GitHubRepo = tbRepo.Text.Trim(); _settings.Save(); };
+        repoBox.Controls.Add(tbRepo);
+        repoBox.Paint += (_, e) =>
+        {
+            using var p = new Pen(_theme.BorderStrong);
+            e.Graphics.DrawRectangle(p, 0, 0, repoBox.Width - 1, repoBox.Height - 1);
+        };
+        cardCloud.Controls.Add(repoBox);
+
+        var chkCloudStartup = new CheckBox
+        {
+            Location = new Point(18, 92),
+            AutoSize = true,
+            Text = "Verifica aggiornamenti cloud all'avvio",
+            Checked = _settings.CheckCloudUpdatesOnStartup
+        };
+        chkCloudStartup.CheckedChanged += (_, _) => { _settings.CheckCloudUpdatesOnStartup = chkCloudStartup.Checked; _settings.Save(); };
+        cardCloud.Controls.Add(chkCloudStartup);
+
+        var btnCheckCloud = new Button();
+        SetupOutlineButton(btnCheckCloud, "VERIFICA ORA", 18, 118, 160, () => CheckCloudUpdatesRequested?.Invoke(this, EventArgs.Empty));
+        cardCloud.Controls.Add(btnCheckCloud);
 
         // --- COLONNA DESTRA ---
         var cardFolder = MakeCard("CARTELLA DI INSTALLAZIONE", rightX, 86, colW, 194);

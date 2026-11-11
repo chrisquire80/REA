@@ -73,6 +73,20 @@ public sealed class MainForm : Form
         _settingsView.DoneRequested += (_, _) => ToggleSettings(false);
         _settingsView.QuitRequested += (_, _) => QuitApplication();
         _settingsView.ThemeChanged += (_, _) => ApplyTheme();
+        _settingsView.CheckCloudUpdatesRequested += async (_, _) => await CheckCloudUpdatesAsync(manual: true);
+
+        if (_settings.CheckCloudUpdatesOnStartup)
+        {
+            Task.Delay(3000).ContinueWith(_ =>
+            {
+                try
+                {
+                    if (IsHandleCreated && !IsDisposed)
+                        BeginInvoke(async () => await CheckCloudUpdatesAsync(manual: false));
+                }
+                catch { }
+            });
+        }
 
         _trayIcon = new NotifyIcon
         {
@@ -597,8 +611,62 @@ public sealed class MainForm : Form
             {
                 var ws = _settings.WorkspaceDir ?? LauncherSettings.DetectWorkspaceDir();
                 if (Directory.Exists(ws)) Process.Start("explorer.exe", ws);
-            });
+            },
+            onCheckCloudUpdates: () => _ = CheckCloudUpdatesAsync(manual: true));
         cp.ShowDialog(this);
+    }
+
+    async Task CheckCloudUpdatesAsync(bool manual = false)
+    {
+        if (manual)
+        {
+            _infoBar.ShowMessage("Verifica disponibilità aggiornamenti su GitHub...", InfoBarControl.BarType.Info, _theme);
+        }
+
+        string currentVer = "v2.1.0";
+        var release = await CloudUpdateService.CheckForUpdatesAsync(_settings.GitHubRepo, currentVer, _settings.IncludePreReleases);
+
+        if (release != null && release.IsUpdateAvailable)
+        {
+            _settings.LastCloudCheckUtc = DateTime.UtcNow;
+            _settings.Save();
+
+            string prompt = $"Nuovo aggiornamento cloud disponibile: {release.RemoteVersion} — {release.Title}.";
+            var res = MessageBox.Show(this,
+                $"{prompt}\n\nNote di rilascio:\n{release.Changelog}\n\nVuoi scaricare e installare automaticamente l'aggiornamento?",
+                "Aggiornamento Cloud NOREA",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+
+            if (res == DialogResult.Yes)
+            {
+                _infoBar.ShowMessage($"Download aggiornamento {release.RemoteVersion} in corso...", InfoBarControl.BarType.Info, _theme);
+                var progress = new Progress<int>(pct =>
+                {
+                    _infoBar.ShowMessage($"Download aggiornamento {release.RemoteVersion}: {pct}%", InfoBarControl.BarType.Info, _theme);
+                });
+
+                string targetDir = _settings.InstallFolder;
+                var (success, msg) = await CloudUpdateService.DownloadAndApplyUpdateAsync(release, targetDir, progress);
+                if (success)
+                {
+                    _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
+                    ReloadCatalog();
+                }
+                else
+                {
+                    _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
+                }
+            }
+            else
+            {
+                _infoBar.ShowMessage($"Aggiornamento cloud {release.RemoteVersion} disponibile su GitHub.", InfoBarControl.BarType.Warning, _theme);
+            }
+        }
+        else if (manual)
+        {
+            _infoBar.ShowMessage($"Nessun aggiornamento trovato. La suite locale è già all'ultima versione ({currentVer}).", InfoBarControl.BarType.Success, _theme);
+        }
     }
 
     void LaunchApp(AppEntry app, bool runAsAdmin = false)
