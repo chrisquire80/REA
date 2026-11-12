@@ -209,7 +209,7 @@ public static class CatalogService
         foreach (var app in list)
             ResolveAppState(app, ws, settings);
 
-        list.RemoveAll(a => a.IsPlanned || (!a.IsInstalled && !a.HasDistBuild && !a.HasProject));
+        list.RemoveAll(a => IsExcludedSuiteComponent(a.Id) || a.IsPlanned || (!a.IsInstalled && !a.HasDistBuild && !a.HasProject));
         RefreshRunningProcesses(list);
 
         return list;
@@ -277,6 +277,14 @@ public static class CatalogService
         catch { }
     }
 
+    static bool IsExcludedSuiteComponent(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        string lower = name.Trim().ToLowerInvariant();
+        return lower is "norea" or "noreacli" or "norea-cli" or "norealauncher" or "noreamcp"
+            || lower.EndsWith("tests") || lower.EndsWith(".tests");
+    }
+
     static void DiscoverWorkspaceProjects(string ws, List<AppEntry> list, LauncherSettings settings)
     {
         try
@@ -284,16 +292,12 @@ public static class CatalogService
             foreach (var dir in Directory.GetDirectories(ws))
             {
                 var folderName = Path.GetFileName(dir);
-                if (string.Equals(folderName, "NoreaLauncher", StringComparison.OrdinalIgnoreCase) ||
-                    folderName.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
-                    folderName.EndsWith("Tests", StringComparison.OrdinalIgnoreCase)) continue;
+                if (IsExcludedSuiteComponent(folderName)) continue;
                 var csproj = Directory.GetFiles(dir, "*.csproj").FirstOrDefault();
                 if (csproj is null) continue;
 
                 var id = Path.GetFileNameWithoutExtension(csproj);
-                if (string.Equals(id, "NoreaLauncher", StringComparison.OrdinalIgnoreCase) ||
-                    id.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
-                    id.EndsWith("Tests", StringComparison.OrdinalIgnoreCase)) continue;
+                if (IsExcludedSuiteComponent(id)) continue;
 
                 var existing = list.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
                 if (existing is null)
@@ -333,7 +337,7 @@ public static class CatalogService
                 foreach (var exe in Directory.GetFiles(distDir, "*.exe"))
                 {
                     var id = Path.GetFileNameWithoutExtension(exe);
-                    if (string.Equals(id, "NoreaLauncher", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (IsExcludedSuiteComponent(id)) continue;
                     var existing = list.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
                     if (existing is null)
                     {
