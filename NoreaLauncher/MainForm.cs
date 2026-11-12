@@ -76,6 +76,7 @@ public sealed class MainForm : Form
         _settingsView.QuitRequested += (_, _) => QuitApplication();
         _settingsView.ThemeChanged += (_, _) => ApplyTheme();
         _settingsView.CheckCloudUpdatesRequested += async (_, _) => await CheckCloudUpdatesAsync(manual: true);
+        _settingsView.TestFlyoutRequested += (_, _) => ShowUpdateFlyoutDemo();
 
         if (_settings.CheckCloudUpdatesOnStartup)
         {
@@ -614,8 +615,41 @@ public sealed class MainForm : Form
                 var ws = _settings.WorkspaceDir ?? LauncherSettings.DetectWorkspaceDir();
                 if (Directory.Exists(ws)) Process.Start("explorer.exe", ws);
             },
-            onCheckCloudUpdates: () => _ = CheckCloudUpdatesAsync(manual: true));
+            onCheckCloudUpdates: () => _ = CheckCloudUpdatesAsync(manual: true),
+            onShowUpdateDemo: ShowUpdateFlyoutDemo);
         cp.ShowDialog(this);
+    }
+
+    public void ShowUpdateFlyoutDemo()
+    {
+        var flyout = new UpdateNotificationFlyout(
+            appName: "NotepadREA",
+            oldVersion: "v2.1.0",
+            newVersion: "v2.2.0",
+            author: "by NOREA",
+            changelogUrl: "https://github.com/chrisquire80/REA/releases",
+            changelogText: "Novità v2.2.0:\n- Terminale PowerShell integrato (F12)\n- Gutter Git Diff\n- Ispezione Esadecimale (Ctrl+Alt+H)\n- Flyout notifica aggiornamenti",
+            appIcon: Icon,
+            accentColor: Color.FromArgb(197, 22, 45));
+
+        flyout.PositionAtBottomRight(this);
+        flyout.Show(this);
+
+        var timer = new System.Windows.Forms.Timer { Interval = 1100 };
+        int step = 0;
+        timer.Tick += (_, _) =>
+        {
+            step++;
+            if (step == 1) flyout.SetProgress(35, "Downloading and installing update (35%)...");
+            else if (step == 2) flyout.SetProgress(78, "Downloading and installing update (78%)...");
+            else if (step >= 3)
+            {
+                timer.Stop();
+                timer.Dispose();
+                flyout.SetCompleted("Update downloaded and installed successfully!");
+            }
+        };
+        timer.Start();
     }
 
     async Task CheckCloudUpdatesAsync(bool manual = false)
@@ -633,36 +667,38 @@ public sealed class MainForm : Form
             _settings.LastCloudCheckUtc = DateTime.UtcNow;
             _settings.Save();
 
-            string prompt = $"Nuovo aggiornamento cloud disponibile: {release.RemoteVersion} — {release.Title}.";
-            var res = MessageBox.Show(this,
-                $"{prompt}\n\nNote di rilascio:\n{release.Changelog}\n\nVuoi scaricare e installare automaticamente l'aggiornamento?",
-                "Aggiornamento Cloud NOREA",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information);
+            // Mostra flyout toast in stile ArtCraft / Modern Dark
+            var flyout = new UpdateNotificationFlyout(
+                appName: "NotepadREA",
+                oldVersion: currentVer,
+                newVersion: release.RemoteVersion,
+                author: "by NOREA",
+                changelogUrl: release.ReleasePageUrl,
+                changelogText: release.Changelog,
+                appIcon: Icon,
+                accentColor: Color.FromArgb(197, 22, 45));
 
-            if (res == DialogResult.Yes)
+            flyout.PositionAtBottomRight(this);
+            flyout.Show(this);
+
+            var progress = new Progress<int>(pct =>
             {
-                _infoBar.ShowMessage($"Download aggiornamento {release.RemoteVersion} in corso...", InfoBarControl.BarType.Info, _theme);
-                var progress = new Progress<int>(pct =>
-                {
-                    _infoBar.ShowMessage($"Download aggiornamento {release.RemoteVersion}: {pct}%", InfoBarControl.BarType.Info, _theme);
-                });
+                flyout.SetProgress(pct, $"Downloading and installing update ({pct}%)...");
+                _infoBar.ShowMessage($"Download aggiornamento {release.RemoteVersion}: {pct}%", InfoBarControl.BarType.Info, _theme);
+            });
 
-                string targetDir = _settings.InstallFolder;
-                var (success, msg) = await CloudUpdateService.DownloadAndApplyUpdateAsync(release, targetDir, progress);
-                if (success)
-                {
-                    _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
-                    ReloadCatalog();
-                }
-                else
-                {
-                    _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
-                }
+            string targetDir = _settings.InstallFolder;
+            var (success, msg) = await CloudUpdateService.DownloadAndApplyUpdateAsync(release, targetDir, progress);
+            if (success)
+            {
+                flyout.SetCompleted("Update downloaded and installed successfully!");
+                _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
+                ReloadCatalog();
             }
             else
             {
-                _infoBar.ShowMessage($"Aggiornamento cloud {release.RemoteVersion} disponibile su GitHub.", InfoBarControl.BarType.Warning, _theme);
+                flyout.SetError($"Update failed: {msg}");
+                _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
             }
         }
         else if (manual)
@@ -836,14 +872,37 @@ public sealed class MainForm : Form
         _detailView.SetApp(app, _theme);
         _infoBar.ShowMessage($"Installazione di {app.DisplayName} in corso...", InfoBarControl.BarType.Info, _theme);
 
+        string oldVer = app.Version;
+        string newVer = "v2.2.0";
+        var flyout = new UpdateNotificationFlyout(
+            appName: app.DisplayName,
+            oldVersion: oldVer,
+            newVersion: newVer,
+            author: app.AuthorBadge.StartsWith("BY ", StringComparison.OrdinalIgnoreCase) 
+                ? "by " + app.AuthorBadge[3..] 
+                : app.AuthorBadge,
+            changelogUrl: "https://github.com/chrisquire80/REA/releases",
+            appIcon: Icon,
+            accentColor: Color.FromArgb(197, 22, 45));
+
+        flyout.PositionAtBottomRight(this);
+        flyout.Show(this);
+        flyout.SetProgress(40, "Downloading and installing update...");
+
         var (success, msg) = await InstallService.InstallOrUpdateAppAsync(app, _settings);
         app.IsOperating = false;
         ReloadCatalog();
 
         if (success)
+        {
+            flyout.SetCompleted("Update downloaded and installed successfully!");
             _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
+        }
         else
+        {
+            flyout.SetError(msg);
             _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
+        }
     }
 
     async Task UninstallApp(AppEntry app)

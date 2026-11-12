@@ -13,7 +13,7 @@ public sealed class CommandPaletteForm : Form
     public sealed record ActionItem(string Title, string Subtitle, Action Execute);
     readonly List<ActionItem> _items = [];
 
-    public CommandPaletteForm(List<AppEntry> apps, LauncherTheme theme, Action onSyncCatalog, Action onOpenSettings, Action onOpenWorkspace, Action? onCheckCloudUpdates = null)
+    public CommandPaletteForm(List<AppEntry> apps, LauncherTheme theme, Action onSyncCatalog, Action onOpenSettings, Action onOpenWorkspace, Action? onCheckCloudUpdates = null, Action? onShowUpdateDemo = null)
     {
         _apps = apps;
         _theme = theme;
@@ -58,6 +58,10 @@ public sealed class CommandPaletteForm : Form
         if (onCheckCloudUpdates != null)
         {
             _items.Add(new ActionItem("Controlla Aggiornamenti Cloud (GitHub)", "Verifica la presenza di nuove release online di NOREA", onCheckCloudUpdates));
+        }
+        if (onShowUpdateDemo != null)
+        {
+            _items.Add(new ActionItem("Mostra Notifica Aggiornamento (Demo Flyout)", "Simula la schermata flyout di aggiornamento app stile ArtCraft", onShowUpdateDemo));
         }
 
         var root = new Panel { Dock = DockStyle.Fill, BackColor = _theme.CardBg, Padding = new Padding(12) };

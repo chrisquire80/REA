@@ -39,6 +39,7 @@ public sealed class SettingsView : UserControl
     public event EventHandler? ThemeChanged;
     public event EventHandler? AddAppRequested;
     public event EventHandler? CheckCloudUpdatesRequested;
+    public event EventHandler? TestFlyoutRequested;
 
     public SettingsView(LauncherSettings settings)
     {
@@ -135,8 +136,12 @@ public sealed class SettingsView : UserControl
         cardCloud.Controls.Add(chkCloudStartup);
 
         var btnCheckCloud = new Button();
-        SetupOutlineButton(btnCheckCloud, "VERIFICA ORA", 18, 118, 160, () => CheckCloudUpdatesRequested?.Invoke(this, EventArgs.Empty));
+        SetupOutlineButton(btnCheckCloud, "VERIFICA ORA", 18, 118, 140, () => CheckCloudUpdatesRequested?.Invoke(this, EventArgs.Empty));
         cardCloud.Controls.Add(btnCheckCloud);
+
+        var btnTestFlyout = new Button();
+        SetupOutlineButton(btnTestFlyout, "PROVA FLYOUT NOTIFICA", 168, 118, 200, () => TestFlyoutRequested?.Invoke(this, EventArgs.Empty));
+        cardCloud.Controls.Add(btnTestFlyout);
 
         // --- COLONNA DESTRA ---
         var cardFolder = MakeCard("CARTELLA DI INSTALLAZIONE", rightX, 86, colW, 194);
