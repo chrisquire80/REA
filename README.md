@@ -3,7 +3,7 @@
 [![Build & Release](https://github.com/chrisquire80/REA/actions/workflows/release.yml/badge.svg)](https://github.com/chrisquire80/REA/actions/workflows/release.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/xUnit-32%20Passed-brightgreen?logo=xunit)
+![Tests](https://img.shields.io/badge/xUnit-35%20Passed-brightgreen?logo=xunit)
 [![Release](https://img.shields.io/github/v/release/chrisquire80/REA?color=blue&label=Latest%20Release)](https://github.com/chrisquire80/REA/releases)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -42,11 +42,30 @@ Launcher della suite in stile **Master-Detail (JetBrains Toolbox / Visual Studio
 * **Cronologia File Recenti**: Accesso rapido ai file aperti di recente dall'editor direttamente dal menu contestuale del launcher.
 * **Integrità & Rollback**: Calcolo e verifica SHA-256 dei binari con manifesto `manifest.json`. Aggiornamento atomico con backup `.prev` e ripristino di emergenza a caldo.
 
-### 3. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
-Suite di test unitari automatizzati con **xUnit** (32 test passati):
+### 3. [NoreaCli & MCP Server](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaCli/NoreaCli.csproj) (v2.2.0)
+Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)** conforme alle specifiche 2024-11-05 per collegare la suite ad agenti AI come **Claude Code** e **Google Antigravity**:
+* **Comandi CLI nativi**:
+  ```powershell
+  norea open Program.cs -n 42        # Apre NotepadREA direttamente alla riga 42
+  norea diff file1.txt file2.txt     # Lancia il confronto side-by-side
+  norea hex payload.bin              # Ispezione esadecimale ed entropia
+  norea notify "Build riuscita!"     # Mostra il flyout toast desktop in stile ArtCraft
+  norea list --json                  # Telemetria e stato delle app in formato JSON
+  norea setup-ai                     # Configurazione automatica 1-click per Claude Code e Antigravity
+  ```
+* **Strumenti MCP per Agenti AI**:
+  * `norea_open_file`: porta in primo piano un file e posiziona il cursore per far visualizzare all'utente il codice modificato in tempo reale.
+  * `norea_compare_files`: apre il diff visivo side-by-side prima di completare merge o refactoring.
+  * `norea_inspect_hex`: analisi dei file binari ed estrazione entropia di Shannon.
+  * `norea_notify`: notifica sul desktop l'avanzamento o la conclusione di task lunghi tramite flyout toast.
+  * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
+
+### 4. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
+Suite di test unitari automatizzati con **xUnit** (35 test passati):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
 * Test per algoritmi di diff `DiffEngine` e parser unificato `GitGutter`.
+* Test per `NoreaBridge`, server MCP JSON-RPC e configuratore AI `AiSetup`.
 * Test di utilità del launcher `LauncherUtil` (split nomi REA, semantica delle versioni `CompareVersions`, anonimizzazione percorsi, telemetria).
 
 ---

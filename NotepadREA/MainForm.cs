@@ -469,15 +469,90 @@ public sealed class MainForm : Form
         }
     }
 
-    /// <summary>Chiamato quando l'utente apre file mentre l'editor è già in esecuzione.</summary>
-    public void OpenFromOtherInstance(string[] files)
+    /// <summary>Elabora argomenti CLI o comandi ricevuti tramite IPC/NamedPipe.</summary>
+    public void HandleCommandLineArgs(string[] args)
     {
-        if (WindowState == FormWindowState.Minimized) WindowState = _settings.Maximized ? FormWindowState.Maximized : FormWindowState.Normal;
-        foreach (var f in files) OpenFile(f);
+        if (WindowState == FormWindowState.Minimized)
+            WindowState = _settings.Maximized ? FormWindowState.Maximized : FormWindowState.Normal;
+
+        int gotoLine = -1;
+        int gotoCol = -1;
+        string? diffA = null;
+        string? diffB = null;
+        string? hexTarget = null;
+        var filesToOpen = new List<string>();
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            string a = args[i].Trim();
+            if (string.IsNullOrEmpty(a)) continue;
+
+            if (a.Equals("--diff", StringComparison.OrdinalIgnoreCase) && i + 2 < args.Length)
+            {
+                diffA = args[++i];
+                diffB = args[++i];
+            }
+            else if (a.Equals("--hex", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                hexTarget = args[++i];
+            }
+            else if (a.Equals("-n", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out int l)) gotoLine = l;
+            }
+            else if (a.StartsWith("-n", StringComparison.OrdinalIgnoreCase) && int.TryParse(a[2..], out int l2))
+            {
+                gotoLine = l2;
+            }
+            else if (a.Equals("-c", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out int c)) gotoCol = c;
+            }
+            else if (a.StartsWith("-c", StringComparison.OrdinalIgnoreCase) && int.TryParse(a[2..], out int c2))
+            {
+                gotoCol = c2;
+            }
+            else if (!a.StartsWith('-'))
+            {
+                filesToOpen.Add(a);
+            }
+        }
+
+        if (diffA != null && diffB != null)
+        {
+            var diffForm = new DiffForm(Docs.ToList(), Current, CurrentTheme);
+            diffForm.LoadFiles(diffA, diffB);
+            diffForm.Show(this);
+        }
+
+        if (hexTarget != null)
+        {
+            OpenHexViewForPath(hexTarget);
+        }
+
+        Document? lastOpened = null;
+        foreach (var f in filesToOpen)
+        {
+            var d = OpenFile(f);
+            if (d != null) lastOpened = d;
+        }
+
+        if (lastOpened != null && gotoLine > 0)
+        {
+            int lineIdx = Math.Clamp(gotoLine - 1, 0, Math.Max(0, lastOpened.Editor.Lines.Count - 1));
+            int pos = lastOpened.Editor.Lines[lineIdx].Position;
+            if (gotoCol > 0) pos += Math.Max(0, gotoCol - 1);
+            lastOpened.Editor.GotoPosition(pos);
+            lastOpened.Editor.FirstVisibleLine = Math.Max(0, lineIdx - 4);
+        }
+
         Activate();
         CheckDiskChanges();
         BringToFront();
     }
+
+    /// <summary>Chiamato quando l'utente apre file mentre l'editor è già in esecuzione.</summary>
+    public void OpenFromOtherInstance(string[] files) => HandleCommandLineArgs(files);
 
     // =====================================================================
     // Documenti
@@ -924,7 +999,7 @@ public sealed class MainForm : Form
             if (_settings.ActiveIndex >= 0 && _settings.ActiveIndex < _strip.Documents.Count) _strip.SelectedIndex = _settings.ActiveIndex;
         }
         CleanOrphanBackups();
-        foreach (var a in _startupArgs) OpenFile(a);
+        HandleCommandLineArgs(_startupArgs);
         if (_strip.Documents.Count == 0) AddDocument();
         ApplyViewSettings();
         OnActiveDocChanged();
@@ -1307,6 +1382,23 @@ public sealed class MainForm : Form
         }
         using var hexForm = new HexForm(title, data, CurrentTheme);
         hexForm.ShowDialog(this);
+    }
+
+    public void OpenHexViewForPath(string path)
+    {
+        if (File.Exists(path))
+        {
+            try
+            {
+                byte[] data = File.ReadAllBytes(path);
+                var hexForm = new HexForm(Path.GetFileName(path), data, CurrentTheme);
+                hexForm.Show(this);
+                return;
+            }
+            catch { }
+        }
+        var doc = OpenFile(path);
+        if (doc != null) OpenHexView();
     }
 
     void JoinLines()

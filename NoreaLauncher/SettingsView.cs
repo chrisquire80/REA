@@ -40,6 +40,7 @@ public sealed class SettingsView : UserControl
     public event EventHandler? AddAppRequested;
     public event EventHandler? CheckCloudUpdatesRequested;
     public event EventHandler? TestFlyoutRequested;
+    public event EventHandler? SetupAiRequested;
 
     public SettingsView(LauncherSettings settings)
     {
@@ -143,6 +144,12 @@ public sealed class SettingsView : UserControl
         SetupOutlineButton(btnTestFlyout, "PROVA FLYOUT NOTIFICA", 168, 118, 200, () => TestFlyoutRequested?.Invoke(this, EventArgs.Empty));
         cardCloud.Controls.Add(btnTestFlyout);
 
+        var cardAi = MakeCard("INTEGRAZIONE AI (CLAUDE & ANTIGRAVITY)", leftX, 582, colW, 114);
+        cardAi.Controls.Add(MakeMutedLabel("Collega NotepadREA e NoreaLauncher come strumenti per assistenti AI", 18, 38));
+        var btnSetupAi = new Button();
+        SetupPrimaryButton(btnSetupAi, "COLLEGA AD AI", 18, 64, 160, () => SetupAiRequested?.Invoke(this, EventArgs.Empty));
+        cardAi.Controls.Add(btnSetupAi);
+
         // --- COLONNA DESTRA ---
         var cardFolder = MakeCard("CARTELLA DI INSTALLAZIONE", rightX, 86, colW, 194);
         cardFolder.Controls.Add(MakeBodyLabel("Cartella programmi predefinita", 18, 40));
@@ -214,7 +221,7 @@ public sealed class SettingsView : UserControl
         });
         cardCommunity.Controls.AddRange([_btnAddApp, _btnOpenWs, _btnEditCatalog]);
 
-        _canvas.Size = new Size(1000, 672);
+        _canvas.Size = new Size(1000, 720);
         _scrollHost.Controls.Add(_canvas);
         _scrollHost.Resize += (_, _) =>
         {

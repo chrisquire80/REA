@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NotepadREA\NotepadREA.csproj" />
     <ProjectReference Include="..\NoreaLauncher\NoreaLauncher.csproj" />
+    <ProjectReference Include="..\NoreaCli\NoreaCli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

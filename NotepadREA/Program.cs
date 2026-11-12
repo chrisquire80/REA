@@ -66,7 +66,7 @@ static class Program
             using var client = new NamedPipeClientStream(".", Id, PipeDirection.Out);
             client.Connect(2000);
             using var w = new StreamWriter(client, new UTF8Encoding(false));
-            w.Write(string.Join("\n", args.Select(a => Path.GetFullPath(a))));
+            w.Write(string.Join("\n", args));
             return true;
         }
         catch { return false; } // istanza bloccata o in chiusura: ne apre una nuova
@@ -83,10 +83,10 @@ static class Program
                     using var server = new NamedPipeServerStream(Id, PipeDirection.In, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.CurrentUserOnly);
                     server.WaitForConnection();
                     using var r = new StreamReader(server, Encoding.UTF8);
-                    var files = r.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                    var args = r.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries);
                     while (!form.IsHandleCreated && !form.IsDisposed) Thread.Sleep(20);
                     if (form.IsDisposed) return;
-                    form.BeginInvoke(() => form.OpenFromOtherInstance(files));
+                    form.BeginInvoke(() => form.HandleCommandLineArgs(args));
                 }
                 catch (ObjectDisposedException) { return; }
                 catch (InvalidOperationException) { return; }

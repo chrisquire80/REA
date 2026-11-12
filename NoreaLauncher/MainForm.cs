@@ -77,6 +77,7 @@ public sealed class MainForm : Form
         _settingsView.ThemeChanged += (_, _) => ApplyTheme();
         _settingsView.CheckCloudUpdatesRequested += async (_, _) => await CheckCloudUpdatesAsync(manual: true);
         _settingsView.TestFlyoutRequested += (_, _) => ShowUpdateFlyoutDemo();
+        _settingsView.SetupAiRequested += (_, _) => ConfigureAiBridge();
 
         if (_settings.CheckCloudUpdatesOnStartup)
         {
@@ -650,6 +651,42 @@ public sealed class MainForm : Form
             }
         };
         timer.Start();
+    }
+
+    void ConfigureAiBridge()
+    {
+        try
+        {
+            var noreaCli = Path.Combine(AppContext.BaseDirectory, "norea.exe");
+            if (!File.Exists(noreaCli))
+            {
+                var ws = _settings.WorkspaceDir ?? LauncherSettings.DetectWorkspaceDir();
+                noreaCli = Path.Combine(ws, "dist", "norea.exe");
+            }
+
+            if (File.Exists(noreaCli))
+            {
+                var psi = new ProcessStartInfo(noreaCli, "setup-ai")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true
+                };
+                using var proc = Process.Start(psi);
+                string outText = proc?.StandardOutput.ReadToEnd() ?? "";
+                proc?.WaitForExit(5000);
+                _infoBar.ShowMessage("Integrazione AI configurata per Claude Code e Antigravity!", InfoBarControl.BarType.Success, _theme);
+                MessageBox.Show(this, outText, "Configurazione AI Bridge Completata", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                _infoBar.ShowMessage("Eseguibile norea.exe non trovato in dist/", InfoBarControl.BarType.Error, _theme);
+            }
+        }
+        catch (Exception ex)
+        {
+            _infoBar.ShowMessage($"Errore configurazione AI: {ex.Message}", InfoBarControl.BarType.Error, _theme);
+        }
     }
 
     async Task CheckCloudUpdatesAsync(bool manual = false)

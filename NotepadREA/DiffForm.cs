@@ -196,6 +196,23 @@ public sealed class DiffForm : Form
         }
     }
 
+    public void LoadFiles(string fileA, string fileB)
+    {
+        if (File.Exists(fileA))
+        {
+            var itemA = new DocComboItem(Path.GetFileName(fileA), fileA, null);
+            _cbLeft.Items.Insert(0, itemA);
+            _cbLeft.SelectedIndex = 0;
+        }
+        if (File.Exists(fileB))
+        {
+            var itemB = new DocComboItem(Path.GetFileName(fileB), fileB, null);
+            _cbRight.Items.Insert(0, itemB);
+            _cbRight.SelectedIndex = 0;
+        }
+        RunDiff();
+    }
+
     private void SwapSides()
     {
         var tempIdx = _cbLeft.SelectedIndex;

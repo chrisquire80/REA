@@ -26,6 +26,25 @@ static class Program
             return;
         }
 
+        if (args.Length >= 1 && (args[0] == "--notify" || args[0] == "-notify"))
+        {
+            string appName = args.Length > 1 ? args[1] : "NotepadREA";
+            string status = args.Length > 2 ? args[2] : "Task completato con successo!";
+            string oldVer = args.Length > 3 ? args[3] : "v2.1.0";
+            string newVer = args.Length > 4 ? args[4] : "v2.2.0";
+
+            ApplicationConfiguration.Initialize();
+            var flyout = new UpdateNotificationFlyout(
+                appName: appName,
+                oldVersion: oldVer,
+                newVersion: newVer,
+                author: "by NOREA");
+            flyout.PositionAtBottomRight();
+            flyout.SetCompleted(status);
+            Application.Run(flyout);
+            return;
+        }
+
         using var mutex = new Mutex(true, PipeId, out bool first);
         if (!first)
         {
