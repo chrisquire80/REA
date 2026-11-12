@@ -61,6 +61,7 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
 ### 4. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
+<<<<<<< HEAD
 Suite di test automatizzati con **xUnit** (51 test):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
@@ -68,6 +69,15 @@ Suite di test automatizzati con **xUnit** (51 test):
 * Test per `NoreaBridge`, configurazione AI isolata in directory temporanee, persistenza e recupero dei file impostazioni/catalogo malformati.
 * Test per applicazione aggiornamenti da archivio: download simulato, hash, rollback e rifiuto di percorsi ZIP esterni alla cartella di installazione.
 * Test di integrazione del server MCP JSON-RPC su stream, modifiche ai file aperti e conflitti di salvataggio.
+=======
+Suite di test unitari automatizzati con **xUnit** (48 test passati):
+* Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
+* Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
+* Test per algoritmi di diff `DiffEngine` e parser unificato `GitGutter`.
+* Test per `NoreaBridge`, configurazione AI isolata in directory temporanee e persistenza delle impostazioni launcher.
+* Test per applicazione aggiornamenti da archivio: download simulato, hash, rollback e rifiuto di percorsi ZIP esterni alla cartella di installazione.
+* Test di integrazione del server MCP JSON-RPC su stream e test di rilevamento modifiche ai file aperti.
+>>>>>>> origin/main
 * Test di utilità del launcher `LauncherUtil` (split nomi REA, semantica delle versioni `CompareVersions`, anonimizzazione percorsi, telemetria).
 
 ---
@@ -89,7 +99,11 @@ Requisiti: **.NET 10 SDK** (Windows 10 / 11 x64).
 # Ripristino e compilazione soluzione
 dotnet build NOREA.slnx -c Release
 
+<<<<<<< HEAD
 # Esecuzione test unitari (51 test)
+=======
+# Esecuzione test unitari (48 test)
+>>>>>>> origin/main
 dotnet test NOREA.Tests\NOREA.Tests.csproj
 
 # Generazione automatica pacchetto portatile (.zip compatto ~3 MB)
@@ -103,6 +117,7 @@ dotnet publish NoreaLauncher\NoreaLauncher.csproj -c Release -r win-x64 --self-c
 .\installa_associazioni.ps1
 ```
 
+<<<<<<< HEAD
 ### Benchmark I/O file grandi
 
 Il benchmark misura separatamente hash su buffer/file, lettura+decodifica e codifica+scrittura. Riporta la mediana dei tempi e le allocazioni gestite per operazione; non è un test di regressione prestazionale e i risultati dipendono da disco, runtime e dimensione della cache.
@@ -117,12 +132,23 @@ dotnet run --project NOREA.Benchmarks\NOREA.Benchmarks.csproj -c Release -- 1,16
 Prima di pubblicare una release, la GitHub Action verifica l'attestazione di
 provenienza di entrambi gli artefatti. La stessa verifica è disponibile localmente
 con GitHub CLI:
+=======
+### Verifica provenienza del pacchetto di release
+
+Le release generate dalla GitHub Action includono un'attestazione di provenienza
+GitHub verificabile con GitHub CLI:
+>>>>>>> origin/main
 
 ```powershell
 gh attestation verify NOREA_Suite_Portable.zip --repo chrisquire80/REA
 ```
 
 Il controllo SHA-256 eseguito dal launcher verifica l'integrità rispetto al digest
+<<<<<<< HEAD
 pubblicato da GitHub; il launcher non verifica autonomamente l'attestazione. Il
 controllo CLI verifica anche il repository e il workflow che hanno prodotto
 l'artefatto.
+=======
+pubblicato da GitHub; l'attestazione CLI verifica anche il repository e il workflow
+che hanno prodotto l'artefatto.
+>>>>>>> origin/main
