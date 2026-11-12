@@ -725,17 +725,20 @@ public sealed class MainForm : Form
             });
 
             string targetDir = _settings.InstallFolder;
-            var (success, msg) = await CloudUpdateService.DownloadAndApplyUpdateAsync(release, targetDir, progress);
-            if (success)
+            var result = await CloudUpdateService.DownloadAndApplyUpdateAsync(release, targetDir, progress);
+            if (result.Success)
             {
-                flyout.SetCompleted("Update downloaded and installed successfully!");
-                _infoBar.ShowMessage(msg, InfoBarControl.BarType.Success, _theme);
-                ReloadCatalog();
+                flyout.SetCompleted(result.Message);
+                _infoBar.ShowMessage(result.Message, InfoBarControl.BarType.Success, _theme);
+                if (result.RestartRequired)
+                    QuitApplication();
+                else
+                    ReloadCatalog();
             }
             else
             {
-                flyout.SetError($"Update failed: {msg}");
-                _infoBar.ShowMessage(msg, InfoBarControl.BarType.Error, _theme);
+                flyout.SetError($"Update failed: {result.Message}");
+                _infoBar.ShowMessage(result.Message, InfoBarControl.BarType.Error, _theme);
             }
         }
         else if (manual)

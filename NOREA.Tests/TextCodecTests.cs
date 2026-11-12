@@ -60,4 +60,17 @@ public class TextCodecTests
         Assert.Equal(FileEncoding.Utf16Le, enc);
         Assert.Equal(sample, decoded);
     }
+
+    [Fact]
+    public void Utf8_Roundtrip_PreservesLargePayload()
+    {
+        string sample = new('x', 16 * 1024 * 1024);
+        byte[] encoded = TextCodec.Encode(sample, FileEncoding.Utf8);
+
+        var (decoded, encoding) = TextCodec.Decode(encoded);
+
+        Assert.Equal(FileEncoding.Utf8, encoding);
+        Assert.Equal(sample.Length, decoded.Length);
+        Assert.Equal(sample, decoded);
+    }
 }

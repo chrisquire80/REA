@@ -101,18 +101,23 @@ public sealed class LauncherSettings
     public static string AppDataDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NOREA");
 
-    static string SettingsFile => Path.Combine(AppDataDir, "launcher_settings.json");
     static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    public static LauncherSettings Load()
+    public static LauncherSettings Load(string? settingsFilePath = null)
     {
+        string path = settingsFilePath ?? Path.Combine(AppDataDir, "launcher_settings.json");
         LauncherSettings s = new();
         try
         {
-            if (File.Exists(SettingsFile))
-                s = JsonSerializer.Deserialize<LauncherSettings>(File.ReadAllText(SettingsFile)) ?? new();
+            if (File.Exists(path))
+                s = JsonSerializer.Deserialize<LauncherSettings>(File.ReadAllText(path))
+                    ?? throw new JsonException("Il file delle impostazioni è vuoto o non contiene un oggetto valido.");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warn($"Impossibile caricare le impostazioni da {path}; verranno usati i valori predefiniti.", ex);
+            PreserveCorruptFile(path);
+        }
 
         if (string.IsNullOrWhiteSpace(s.InstallFolder))
             s.InstallFolder = DefaultInstallFolder;
@@ -123,16 +128,19 @@ public sealed class LauncherSettings
         return s;
     }
 
-    public void Save()
+    public void Save(string? settingsFilePath = null)
     {
+        string path = settingsFilePath ?? Path.Combine(AppDataDir, "launcher_settings.json");
+        string? temp = null;
         try
         {
-            Directory.CreateDirectory(AppDataDir);
-            var tmp = SettingsFile + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(this, JsonOpts));
-            File.Move(tmp, SettingsFile, overwrite: true);
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+            temp = path + $".{Guid.NewGuid():N}.tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(this, JsonOpts));
+            ReplaceFile(temp, path);
         }
-        catch { }
+        catch (Exception ex) { Log.Warn($"Impossibile salvare le impostazioni in {path}.", ex); }
+        finally { DeleteTemporaryFile(temp); }
     }
 
     public void ApplyStartupRegistry()
@@ -163,6 +171,33 @@ public sealed class LauncherSettings
         }
         return AppContext.BaseDirectory;
     }
+
+    internal static void PreserveCorruptFile(string path)
+    {
+        if (!File.Exists(path)) return;
+        string backup = path + $".corrupt-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+        try { File.Copy(path, backup); }
+        catch (Exception ex) { Log.Warn($"Impossibile preservare il file non valido {path}.", ex); }
+    }
+
+    internal static void ReplaceFile(string temp, string destination)
+    {
+        if (!File.Exists(destination))
+        {
+            File.Move(temp, destination);
+            return;
+        }
+
+        try { File.Replace(temp, destination, null); }
+        catch (PlatformNotSupportedException) { File.Move(temp, destination, overwrite: true); }
+    }
+
+    internal static void DeleteTemporaryFile(string? path)
+    {
+        if (path is null || !File.Exists(path)) return;
+        try { File.Delete(path); }
+        catch (Exception ex) { Log.Warn($"Impossibile eliminare il file temporaneo {path}.", ex); }
+    }
 }
 
 public static class CatalogService
@@ -187,20 +222,27 @@ public static class CatalogService
         var ws = settings.WorkspaceDir ?? LauncherSettings.DetectWorkspaceDir();
         var catalogPath = GetCatalogPath(settings);
         List<AppEntry> list = [];
+        bool catalogExists = File.Exists(catalogPath);
 
-        if (File.Exists(catalogPath))
+        if (catalogExists)
         {
             try
             {
-                list = JsonSerializer.Deserialize<List<AppEntry>>(File.ReadAllText(catalogPath), JsonOpts) ?? [];
+                list = JsonSerializer.Deserialize<List<AppEntry>>(File.ReadAllText(catalogPath), JsonOpts)
+                    ?? throw new JsonException("Il catalogo è vuoto o non contiene un array valido.");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Warn($"Catalogo non valido in {catalogPath}; il file originale verrà preservato.", ex);
+                LauncherSettings.PreserveCorruptFile(catalogPath);
+                list = [];
+            }
         }
 
         if (list.Count == 0)
         {
             list = GetDefaultCatalog();
-            SaveCatalog(settings, list);
+            if (!catalogExists) SaveCatalog(settings, list);
         }
 
         if (Directory.Exists(ws))
@@ -268,13 +310,17 @@ public static class CatalogService
 
     public static void SaveCatalog(LauncherSettings settings, List<AppEntry> apps)
     {
+        string? temp = null;
         try
         {
             var path = GetCatalogPath(settings);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, JsonSerializer.Serialize(apps, JsonOpts));
+            temp = path + $".{Guid.NewGuid():N}.tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(apps, JsonOpts));
+            LauncherSettings.ReplaceFile(temp, path);
         }
-        catch { }
+        catch (Exception ex) { Log.Warn("Impossibile salvare il catalogo NOREA.", ex); }
+        finally { LauncherSettings.DeleteTemporaryFile(temp); }
     }
 
     static bool IsExcludedSuiteComponent(string name)

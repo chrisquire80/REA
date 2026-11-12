@@ -16,8 +16,13 @@ public static class McpServer
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.InputEncoding = System.Text.Encoding.UTF8;
 
-        using var reader = new StreamReader(Console.OpenStandardInput(), System.Text.Encoding.UTF8);
-        using var writer = new StreamWriter(Console.OpenStandardOutput(), new System.Text.UTF8Encoding(false)) { AutoFlush = true };
+        await RunAsync(Console.OpenStandardInput(), Console.OpenStandardOutput());
+    }
+
+    public static async Task RunAsync(Stream input, Stream output)
+    {
+        using var reader = new StreamReader(input, System.Text.Encoding.UTF8, leaveOpen: true);
+        using var writer = new StreamWriter(output, new System.Text.UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 
         while (true)
         {
@@ -258,7 +263,8 @@ public static class McpServer
         int col = args["column"]?.GetValue<int>() ?? -1;
 
         bool ok = NoreaBridge.OpenInNotepad(path, line, col);
-        return ok ? $"File aperto con successo in NotepadREA: {path}" : $"Impossibile aprire il file {path}";
+        if (!ok) throw new InvalidOperationException($"Impossibile aprire il file {path}");
+        return $"File aperto con successo in NotepadREA: {path}";
     }
 
     private static string ExecuteCompareFiles(JsonObject args)
@@ -267,25 +273,28 @@ public static class McpServer
         string b = args["fileB"]?.GetValue<string>() ?? throw new ArgumentException("fileB mancante");
 
         bool ok = NoreaBridge.DiffInNotepad(a, b);
-        return ok ? $"Diff Side-by-Side aperto in NotepadREA tra {a} e {b}" : "Impossibile aprire il Diff Side-by-Side";
+        if (!ok) throw new InvalidOperationException("Impossibile aprire il Diff Side-by-Side");
+        return $"Diff Side-by-Side aperto in NotepadREA tra {a} e {b}";
     }
 
     private static string ExecuteInspectHex(JsonObject args)
     {
         string path = args["filePath"]?.GetValue<string>() ?? throw new ArgumentException("filePath mancante");
         bool ok = NoreaBridge.HexInNotepad(path);
-        return ok ? $"Ispezione esadecimale aperta in NotepadREA per: {path}" : $"Impossibile aprire la vista esadecimale per {path}";
+        if (!ok) throw new InvalidOperationException($"Impossibile aprire la vista esadecimale per {path}");
+        return $"Ispezione esadecimale aperta in NotepadREA per: {path}";
     }
 
     private static string ExecuteNotify(JsonObject args)
     {
-        string app = args["appName"]?.GetValue<string>() ?? "NotepadREA";
-        string msg = args["message"]?.GetValue<string>() ?? "Operazione completata";
+        string app = args["appName"]?.GetValue<string>() ?? throw new ArgumentException("appName mancante");
+        string msg = args["message"]?.GetValue<string>() ?? throw new ArgumentException("message mancante");
         string oldVer = args["oldVersion"]?.GetValue<string>() ?? "v2.1.0";
         string newVer = args["newVersion"]?.GetValue<string>() ?? "v2.2.0";
 
         bool ok = NoreaBridge.NotifyLauncher(app, msg, oldVer, newVer);
-        return ok ? $"Notifica inviata con successo al desktop: [{app}] {msg}" : "Impossibile mostrare la notifica desktop";
+        if (!ok) throw new InvalidOperationException("Impossibile mostrare la notifica desktop");
+        return $"Notifica inviata con successo al desktop: [{app}] {msg}";
     }
 
     private static string ExecuteListApps(JsonObject args)
@@ -299,7 +308,8 @@ public static class McpServer
     {
         string appId = args["appId"]?.GetValue<string>() ?? throw new ArgumentException("appId mancante");
         bool ok = NoreaBridge.LaunchApp(appId);
-        return ok ? $"Applicazione {appId} avviata con successo" : $"Impossibile trovare o avviare {appId}";
+        if (!ok) throw new InvalidOperationException($"Impossibile trovare o avviare {appId}");
+        return $"Applicazione {appId} avviata con successo";
     }
 
     private static JsonObject MakeSuccessResponse(JsonNode? id, JsonObject result)
