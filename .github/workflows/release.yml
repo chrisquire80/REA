@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build-and-release:
@@ -36,6 +38,13 @@ jobs:
           $hash = (Get-FileHash NOREA_Suite_Portable.zip -Algorithm SHA256).Hash
           Set-Content -Path checksums.txt -Value "SHA256 (NOREA_Suite_Portable.zip) = $hash"
           Get-Content checksums.txt
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            NOREA_Suite_Portable.zip
+            checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

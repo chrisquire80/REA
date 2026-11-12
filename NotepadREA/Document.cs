@@ -17,6 +17,7 @@ public sealed class Document : UserControl
     public FileEncoding Encoding { get; set; } = FileEncoding.Utf8;
     public Language Language { get; private set; } = Languages.Normal;
     public DateTime LastWriteUtc { get; private set; }
+    DiskFileSnapshot? _diskSnapshot;
     public string DisplayName { get; private set; }
     public bool HasMixedEol { get; private set; }
     public bool WasDetectedAsBinary { get; private set; }
@@ -317,25 +318,60 @@ public sealed class Document : UserControl
     // ---------- I/O file ----------
     public new void Load(string path, Theme theme, string font, int size)
     {
+        var before = ReadFileMetadata(path);
         var bytes = File.ReadAllBytes(path);
-        WasDetectedAsBinary = TextCodec.LooksBinary(bytes);
-        (string text, FileEncoding enc) = TextCodec.Decode(bytes);
-        Encoding = enc;
-        HasMixedEol = TextCodec.HasMixedEol(text);
+        var after = DiskFileSnapshot.FromBytes(path, bytes);
+        if (before != (after.LastWriteUtc, after.Length)) throw new ExternalFileChangedException(path);
+        LoadBytes(path, DecodeFile(bytes), after, theme, font, size);
+    }
+
+    public async Task LoadAsync(string path, Theme theme, string font, int size)
+    {
+        var before = ReadFileMetadata(path);
+        var bytes = await File.ReadAllBytesAsync(path);
+        var decoded = await Task.Run(() => DecodeFile(bytes));
+        if (IsDisposed) return;
+        var after = DiskFileSnapshot.FromBytes(path, bytes);
+        if (before != (after.LastWriteUtc, after.Length)) throw new ExternalFileChangedException(path);
+        LoadBytes(path, decoded, after, theme, font, size);
+    }
+
+    static (DateTime LastWriteUtc, long Length) ReadFileMetadata(string path)
+    {
+        var info = new FileInfo(path);
+        info.Refresh();
+        if (!info.Exists) throw new FileNotFoundException("File non trovato.", path);
+        return (info.LastWriteTimeUtc, info.Length);
+    }
+
+    static (int ByteLength, bool Binary, string Text, FileEncoding Encoding, bool MixedEol, Eol Eol) DecodeFile(byte[] bytes)
+    {
+        bool binary = TextCodec.LooksBinary(bytes);
+        (string text, FileEncoding encoding) = TextCodec.Decode(bytes);
+        return (bytes.Length, binary, text, encoding, TextCodec.HasMixedEol(text), TextCodec.DetectEol(text));
+    }
+
+    void LoadBytes(string path, (int ByteLength, bool Binary, string Text, FileEncoding Encoding, bool MixedEol, Eol Eol) decoded,
+        DiskFileSnapshot snapshot, Theme theme, string font, int size)
+    {
+        WasDetectedAsBinary = decoded.Binary;
+        Encoding = decoded.Encoding;
+        HasMixedEol = decoded.MixedEol;
         FilePath = Path.GetFullPath(path);
         DisplayName = Path.GetFileName(path);
-        LastWriteUtc = File.GetLastWriteTimeUtc(path);
+        _diskSnapshot = snapshot;
+        LastWriteUtc = _diskSnapshot.Value.LastWriteUtc;
         _forcedDirty = false;
         MissingAcknowledged = false;
         _ = GitGutter.UpdateGutterAsync(Editor, FilePath);
 
-        bool isLarge = bytes.Length > 2_000_000;
+        bool isLarge = decoded.ByteLength > 2_000_000;
         Editor.ScrollWidthTracking = !isLarge;
         Editor.AutomaticFold = isLarge ? 0 : (AutomaticFold.Show | AutomaticFold.Click | AutomaticFold.Change);
 
         Editor.ReadOnly = WasDetectedAsBinary;
-        Editor.Text = text;
-        Editor.EolMode = TextCodec.DetectEol(text);
+        Editor.Text = decoded.Text;
+        Editor.EolMode = decoded.Eol;
         Editor.EmptyUndoBuffer();
         Editor.SetSavePoint();
         DirtySinceBackup = false;
@@ -396,47 +432,70 @@ public sealed class Document : UserControl
         Editor.FirstVisibleLine = first;
     }
 
-    public void SaveTo(string path, Theme theme, string font, int size)
+    public void SaveTo(string path, Theme theme, string font, int size, bool overwriteExternalChanges = false)
     {
+        string fullPath = Path.GetFullPath(path);
+        bool sameTrackedFile = FilePath != null &&
+            string.Equals(fullPath, FilePath, StringComparison.OrdinalIgnoreCase);
+        if (sameTrackedFile && !overwriteExternalChanges)
+        {
+            if (!File.Exists(fullPath) || _diskSnapshot is not { } snapshot || snapshot.HasChanged(fullPath))
+                throw new ExternalFileChangedException(fullPath);
+        }
+
         var bytes = TextCodec.Encode(Editor.Text, Encoding);
-        string? dir = Path.GetDirectoryName(path);
+        string? dir = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-        string tmp = path + $".{Guid.NewGuid():N}.tmp";
-        File.WriteAllBytes(tmp, bytes);
-
-        if (File.Exists(path))
+        string tmp = fullPath + $".{Guid.NewGuid():N}.tmp";
+        try
         {
-            try
+            File.WriteAllBytes(tmp, bytes);
+
+            if (File.Exists(fullPath))
             {
-                File.Replace(tmp, path, null);
+                try
+                {
+                    File.Replace(tmp, fullPath, null);
+                }
+                catch
+                {
+                    File.Move(tmp, fullPath, overwrite: true);
+                }
             }
-            catch
+            else
             {
-                File.Move(tmp, path, overwrite: true);
+                File.Move(tmp, fullPath);
             }
         }
-        else
+        finally
         {
-            File.Move(tmp, path);
+            if (File.Exists(tmp)) File.Delete(tmp);
         }
 
-        bool langChange = FilePath is null || !string.Equals(Path.GetExtension(FilePath), Path.GetExtension(path), StringComparison.OrdinalIgnoreCase);
-        FilePath = Path.GetFullPath(path);
-        DisplayName = Path.GetFileName(path);
-        LastWriteUtc = File.GetLastWriteTimeUtc(path);
+        bool langChange = FilePath is null || !string.Equals(Path.GetExtension(FilePath), Path.GetExtension(fullPath), StringComparison.OrdinalIgnoreCase);
+        FilePath = fullPath;
+        DisplayName = Path.GetFileName(fullPath);
+        _diskSnapshot = DiskFileSnapshot.FromBytes(fullPath, bytes);
+        LastWriteUtc = _diskSnapshot.Value.LastWriteUtc;
         _forcedDirty = false;
         MissingAcknowledged = false;
         _ = GitGutter.UpdateGutterAsync(Editor, FilePath);
         HasMixedEol = TextCodec.HasMixedEol(Editor.Text);
         Editor.SetSavePoint();
-        if (langChange) SetLanguage(Languages.FromPath(path), theme, font, size);
+        if (langChange) SetLanguage(Languages.FromPath(fullPath), theme, font, size);
         RaiseState();
     }
 
-    public bool ChangedOnDisk => FilePath is not null && File.Exists(FilePath) && File.GetLastWriteTimeUtc(FilePath) != LastWriteUtc;
+    public bool ChangedOnDisk => FilePath is not null && File.Exists(FilePath) &&
+        (_diskSnapshot is not { } snapshot || snapshot.MetadataChanged(FilePath));
     public bool MissingOnDisk => FilePath is not null && !File.Exists(FilePath);
-    public void AcknowledgeDiskState() { if (FilePath is not null && File.Exists(FilePath)) LastWriteUtc = File.GetLastWriteTimeUtc(FilePath); }
+    public void AcknowledgeDiskState()
+    {
+        if (FilePath is null || !File.Exists(FilePath)) return;
+        _diskSnapshot = DiskFileSnapshot.Capture(FilePath);
+        LastWriteUtc = _diskSnapshot.Value.LastWriteUtc;
+    }
 
     public static (string, FileEncoding) Decode(byte[] b) => TextCodec.Decode(b);
     public static byte[] Encode(string text, FileEncoding enc) => TextCodec.Encode(text, enc);

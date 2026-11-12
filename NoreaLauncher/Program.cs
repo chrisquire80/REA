@@ -9,6 +9,29 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Length == 6 && args[0] == "--apply-update" &&
+            int.TryParse(args[4], out int parentProcessId))
+        {
+            try
+            {
+                var result = CloudUpdateService.ApplyDeferredUpdate(
+                    args[1], args[2], string.IsNullOrWhiteSpace(args[3]) ? null : args[3], parentProcessId, args[5]);
+                if (!result.Success) Log.Error(result.Message);
+            }
+            catch (Exception ex) { Log.Error("Impossibile completare l'aggiornamento differito.", ex); }
+            return;
+        }
+
+        if (args.Length == 3 && args[0] == "--cleanup-update" &&
+            int.TryParse(args[2], out int updaterProcessId) &&
+            IsTemporaryUpdateDirectory(args[1]))
+        {
+            CloudUpdateService.WaitForProcessExit(updaterProcessId);
+            try { Directory.Delete(Path.GetFullPath(args[1]), recursive: true); }
+            catch (Exception ex) { Log.Warn($"Impossibile rimuovere i file temporanei dell'aggiornamento {args[1]}.", ex); }
+            args = [];
+        }
+
         if (args.Length >= 2 && args[0] == "--export-preview")
         {
             try
@@ -56,6 +79,15 @@ static class Program
         var form = new MainForm();
         StartPipeServer(form);
         Application.Run(form);
+    }
+
+    static bool IsTemporaryUpdateDirectory(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        string tempPath = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(tempPath, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(Path.GetDirectoryName(fullPath), tempPath.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) &&
+               Path.GetFileName(fullPath).StartsWith("norea_update_", StringComparison.OrdinalIgnoreCase);
     }
 
     static void SignalRunningInstance()

@@ -3,7 +3,7 @@
 [![Build & Release](https://github.com/chrisquire80/REA/actions/workflows/release.yml/badge.svg)](https://github.com/chrisquire80/REA/actions/workflows/release.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/xUnit-35%20Passed-brightgreen?logo=xunit)
+![Tests](https://img.shields.io/badge/xUnit-48%20Passed-brightgreen?logo=xunit)
 [![Release](https://img.shields.io/github/v/release/chrisquire80/REA?color=blue&label=Latest%20Release)](https://github.com/chrisquire80/REA/releases)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -61,11 +61,13 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
 ### 4. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
-Suite di test unitari automatizzati con **xUnit** (35 test passati):
-* Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti).
+Suite di test unitari automatizzati con **xUnit** (48 test passati):
+* Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
 * Test per algoritmi di diff `DiffEngine` e parser unificato `GitGutter`.
-* Test per `NoreaBridge`, server MCP JSON-RPC e configuratore AI `AiSetup`.
+* Test per `NoreaBridge`, configurazione AI isolata in directory temporanee e persistenza delle impostazioni launcher.
+* Test per applicazione aggiornamenti da archivio: download simulato, hash, rollback e rifiuto di percorsi ZIP esterni alla cartella di installazione.
+* Test di integrazione del server MCP JSON-RPC su stream e test di rilevamento modifiche ai file aperti.
 * Test di utilità del launcher `LauncherUtil` (split nomi REA, semantica delle versioni `CompareVersions`, anonimizzazione percorsi, telemetria).
 
 ---
@@ -87,7 +89,7 @@ Requisiti: **.NET 10 SDK** (Windows 10 / 11 x64).
 # Ripristino e compilazione soluzione
 dotnet build NOREA.slnx -c Release
 
-# Esecuzione test unitari (32 test)
+# Esecuzione test unitari (48 test)
 dotnet test NOREA.Tests\NOREA.Tests.csproj
 
 # Generazione automatica pacchetto portatile (.zip compatto ~3 MB)
@@ -100,3 +102,16 @@ dotnet publish NoreaLauncher\NoreaLauncher.csproj -c Release -r win-x64 --self-c
 # Registrazione associazioni file ed estensioni (.txt, .cs, .py, ecc.)
 .\installa_associazioni.ps1
 ```
+
+### Verifica provenienza del pacchetto di release
+
+Le release generate dalla GitHub Action includono un'attestazione di provenienza
+GitHub verificabile con GitHub CLI:
+
+```powershell
+gh attestation verify NOREA_Suite_Portable.zip --repo chrisquire80/REA
+```
+
+Il controllo SHA-256 eseguito dal launcher verifica l'integrità rispetto al digest
+pubblicato da GitHub; l'attestazione CLI verifica anche il repository e il workflow
+che hanno prodotto l'artefatto.

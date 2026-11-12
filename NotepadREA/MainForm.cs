@@ -30,6 +30,7 @@ public sealed class MainForm : Form
     readonly ToolStripMenuItem _encMenu = new("Codi&fica");
     readonly ToolStripMenuItem _themeMenu = new("Tema");
     readonly Stack<string> _closedFiles = new();
+    readonly HashSet<string> _openingFiles = new(StringComparer.OrdinalIgnoreCase);
     readonly System.Windows.Forms.Timer _snapshotTimer = new();
     readonly string[] _startupArgs;
 
@@ -459,7 +460,7 @@ public sealed class MainForm : Form
         foreach (var path in _settings.RecentFiles)
         {
             var p = path;
-            _recentMenu.DropDownItems.Add(new ToolStripMenuItem($"&{(++i) % 10} {p}", null, (_, _) => OpenFile(p)));
+            _recentMenu.DropDownItems.Add(new ToolStripMenuItem($"&{(++i) % 10} {p}", null, async (_, _) => await OpenFileAsync(p)));
         }
         if (i == 0) _recentMenu.DropDownItems.Add(new ToolStripMenuItem("(vuoto)") { Enabled = false });
         else
@@ -470,7 +471,7 @@ public sealed class MainForm : Form
     }
 
     /// <summary>Elabora argomenti CLI o comandi ricevuti tramite IPC/NamedPipe.</summary>
-    public void HandleCommandLineArgs(string[] args)
+    public async void HandleCommandLineArgs(string[] args)
     {
         if (WindowState == FormWindowState.Minimized)
             WindowState = _settings.Maximized ? FormWindowState.Maximized : FormWindowState.Normal;
@@ -527,13 +528,13 @@ public sealed class MainForm : Form
 
         if (hexTarget != null)
         {
-            OpenHexViewForPath(hexTarget);
+            await OpenHexViewForPathAsync(hexTarget);
         }
 
         Document? lastOpened = null;
         foreach (var f in filesToOpen)
         {
-            var d = OpenFile(f);
+            var d = await OpenFileAsync(f);
             if (d != null) lastOpened = d;
         }
 
@@ -585,16 +586,30 @@ public sealed class MainForm : Form
             InitialDirectory = Current?.FilePath is { } p ? Path.GetDirectoryName(p) : null,
         };
         if (dlg.ShowDialog(this) == DialogResult.OK)
-            foreach (var f in dlg.FileNames) OpenFile(f);
+            _ = OpenSelectedFilesAsync(dlg.FileNames);
     }
 
-    public Document? OpenFile(string path)
+    async Task OpenSelectedFilesAsync(IEnumerable<string> paths)
     {
+        foreach (var path in paths) await OpenFileAsync(path);
+    }
+
+    public async Task<Document?> OpenFileAsync(string path)
+    {
+        Document? doc = null;
+        bool createdDocument = false;
+        bool ownsOpeningPath = false;
+        bool previousReadOnly = false;
+        bool lockedForLoading = false;
+        string? normalizedPath = null;
         try
         {
-            path = Path.GetFullPath(path);
-            var existing = Docs.FirstOrDefault(d => string.Equals(d.FilePath, path, StringComparison.OrdinalIgnoreCase));
+            normalizedPath = Path.GetFullPath(path);
+            var existing = Docs.FirstOrDefault(d => string.Equals(d.FilePath, normalizedPath, StringComparison.OrdinalIgnoreCase));
             if (existing != null) { _strip.Select(existing); return existing; }
+            if (!_openingFiles.Add(normalizedPath)) return null;
+            ownsOpeningPath = true;
+            path = normalizedPath;
             if (!File.Exists(path))
             {
                 if (MessageBox.Show(this, $"\"{path}\" non esiste. Crearlo?", "NotepadREA", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return null;
@@ -606,24 +621,44 @@ public sealed class MainForm : Form
                 return null;
 
             // Riusa la scheda "nuovo 1" vuota, come fa Notepad++
-            var doc = Current is { IsUntitledAndEmpty: true } && _strip.Documents.Count == 1 ? Current : AddDocument();
-            doc.Load(path, CurrentTheme, _settings.FontName, _settings.FontSize);
-            ApplyViewSettings(doc);
-            _strip.Select(doc);
-            if (doc.WasDetectedAsBinary)
+            bool reuseCurrent = Current is { IsUntitledAndEmpty: true, IsReadOnly: false } && _strip.Documents.Count == 1;
+            doc = reuseCurrent ? Current : AddDocument();
+            createdDocument = !reuseCurrent;
+            var openedDocument = doc ?? throw new InvalidOperationException("Impossibile creare la scheda del documento.");
+            previousReadOnly = openedDocument.Editor.ReadOnly;
+            openedDocument.Editor.ReadOnly = true;
+            lockedForLoading = true;
+            await openedDocument.LoadAsync(path, CurrentTheme, _settings.FontName, _settings.FontSize);
+            if (openedDocument.IsDisposed) return null;
+            lockedForLoading = false;
+            ApplyViewSettings(openedDocument);
+            _strip.Select(openedDocument);
+            if (openedDocument.WasDetectedAsBinary)
             {
                 MessageBox.Show(this, $"\"{Path.GetFileName(path)}\" contiene caratteri null o sequenze binarie.\nÈ stato aperto in modalità Sola Lettura per proteggere l'integrità del file.",
                     "File binario", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             _settings.AddRecent(path);
             OnActiveDocChanged();
-            return doc;
+            return openedDocument;
         }
         catch (Exception ex)
         {
+            if (doc?.IsDisposed == true) return null;
             Log.Error($"Impossibile aprire {path}", ex);
             MessageBox.Show(this, $"Impossibile aprire \"{path}\":\n{ex.Message}", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (lockedForLoading && doc != null) doc.Editor.ReadOnly = previousReadOnly;
+            if (createdDocument && doc != null)
+            {
+                _strip.Remove(doc);
+                _host.Controls.Remove(doc);
+                doc.Dispose();
+            }
             return null;
+        }
+        finally
+        {
+            if (ownsOpeningPath && normalizedPath != null) _openingFiles.Remove(normalizedPath);
         }
     }
 
@@ -633,7 +668,19 @@ public sealed class MainForm : Form
         if (doc.FilePath is null) return SaveAs(doc);
         try
         {
-            doc.SaveTo(doc.FilePath, CurrentTheme, _settings.FontName, _settings.FontSize);
+            try
+            {
+                doc.SaveTo(doc.FilePath, CurrentTheme, _settings.FontName, _settings.FontSize);
+            }
+            catch (ExternalFileChangedException)
+            {
+                var choice = MessageBox.Show(this,
+                    $"\"{doc.FilePath}\" è stato modificato da un altro programma.\n\nSì: sovrascrivi le modifiche esterne.\nNo: salva con un altro nome.\nAnnulla: non salvare.",
+                    "Conflitto di salvataggio", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                if (choice == DialogResult.Cancel) return false;
+                if (choice == DialogResult.No) return SaveAs(doc);
+                doc.SaveTo(doc.FilePath, CurrentTheme, _settings.FontName, _settings.FontSize, overwriteExternalChanges: true);
+            }
             DeleteBackup(doc);
             return true;
         }
@@ -706,7 +753,7 @@ public sealed class MainForm : Form
         if (dlg.ShowDialog(this) != DialogResult.OK) return false;
         try
         {
-            doc.SaveTo(dlg.FileName, CurrentTheme, _settings.FontName, _settings.FontSize);
+            doc.SaveTo(dlg.FileName, CurrentTheme, _settings.FontName, _settings.FontSize, overwriteExternalChanges: true);
             DeleteBackup(doc);
             ApplyViewSettings(doc);
             _settings.AddRecent(doc.FilePath!);
@@ -795,7 +842,7 @@ public sealed class MainForm : Form
         while (_closedFiles.Count > 0)
         {
             var p = _closedFiles.Pop();
-            if (File.Exists(p)) { OpenFile(p); return; }
+            if (File.Exists(p)) { _ = OpenFileAsync(p); return; }
         }
     }
 
@@ -844,7 +891,7 @@ public sealed class MainForm : Form
     void OnDragDrop(object? sender, DragEventArgs e)
     {
         if (e.Data?.GetData(DataFormats.FileDrop) is string[] files)
-            foreach (var f in files.Where(File.Exists)) OpenFile(f);
+            _ = OpenSelectedFilesAsync(files.Where(File.Exists));
     }
 
     /// <summary>Controlla, quando la finestra torna attiva, se i file aperti sono stati modificati o eliminati da altri programmi.</summary>
@@ -968,7 +1015,7 @@ public sealed class MainForm : Form
         _settings.Save();
     }
 
-    void RestoreAndOpenArgs()
+    async void RestoreAndOpenArgs()
     {
         ApplyTheme();
         if (_settings.RestoreSession)
@@ -987,7 +1034,7 @@ public sealed class MainForm : Form
                         if (entry.Title != null) d.SetUntitledName(entry.Title);
                         ApplyViewSettings(d);
                     }
-                    else if (entry.Path != null && File.Exists(entry.Path)) d = OpenFile(entry.Path);
+                    else if (entry.Path != null && File.Exists(entry.Path)) d = await OpenFileAsync(entry.Path);
                     if (d is null) continue;
                     if (Languages.All.FirstOrDefault(l => l.Name == entry.Language) is { } lang && lang != d.Language)
                         d.SetLanguage(lang, CurrentTheme, _settings.FontName, _settings.FontSize);
@@ -1183,9 +1230,9 @@ public sealed class MainForm : Form
         string dir = Current?.FilePath != null ? Path.GetDirectoryName(Current.FilePath)! : Directory.GetCurrentDirectory();
         string? text = Current?.Editor.SelectedText;
         var form = new FindInFilesForm(dir, string.IsNullOrWhiteSpace(text) ? null : text);
-        form.ResultSelected += (res) =>
+        form.ResultSelected += async (res) =>
         {
-            var doc = OpenFile(res.FilePath);
+            var doc = await OpenFileAsync(res.FilePath);
             if (doc != null)
             {
                 doc.GotoLine(res.LineNumber - 1);
@@ -1384,20 +1431,20 @@ public sealed class MainForm : Form
         hexForm.ShowDialog(this);
     }
 
-    public void OpenHexViewForPath(string path)
+    public async Task OpenHexViewForPathAsync(string path)
     {
         if (File.Exists(path))
         {
             try
             {
-                byte[] data = File.ReadAllBytes(path);
+                byte[] data = await File.ReadAllBytesAsync(path);
                 var hexForm = new HexForm(Path.GetFileName(path), data, CurrentTheme);
                 hexForm.Show(this);
                 return;
             }
-            catch { }
+            catch (Exception ex) { Log.Warn($"Impossibile leggere {path} per la vista esadecimale.", ex); }
         }
-        var doc = OpenFile(path);
+        var doc = await OpenFileAsync(path);
         if (doc != null) OpenHexView();
     }
 
@@ -1515,7 +1562,7 @@ public sealed class MainForm : Form
         if (int.TryParse(input, out int n)) d.GotoLine(n - 1);
     }
 
-    void QuickOpen()
+    async void QuickOpen()
     {
         var entries = new List<QuickOpenForm.Entry>();
         entries.AddRange(Docs.Where(d => d.FilePath != null).Select(d => new QuickOpenForm.Entry(d.FilePath!, "• aperto")));
@@ -1536,7 +1583,7 @@ public sealed class MainForm : Form
         qo.Location = PointToScreen(new Point(Math.Max(0, (ClientSize.Width - qo.Width) / 2), _strip.Bottom + 4));
         if (qo.ShowDialog(this) != DialogResult.OK) return;
         if (qo.GotoLine is int line) Current?.GotoLine(line - 1);
-        else if (qo.SelectedPath != null) OpenFile(qo.SelectedPath);
+        else if (qo.SelectedPath != null) await OpenFileAsync(qo.SelectedPath);
     }
 
     void GotoMatchingBrace()
