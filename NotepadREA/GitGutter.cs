@@ -93,6 +93,11 @@ public static class GitGutter
 
         string? dir = Path.GetDirectoryName(filePath);
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
+        if (!IsInsideGitRepository(dir))
+        {
+            ClearGutter(sci);
+            return;
+        }
 
         string fileName = Path.GetFileName(filePath);
 
@@ -145,6 +150,16 @@ public static class GitGutter
             }
         }
         catch { }
+    }
+
+    static bool IsInsideGitRepository(string directory)
+    {
+        for (DirectoryInfo? current = new(directory); current is not null; current = current.Parent)
+        {
+            string gitEntry = Path.Combine(current.FullName, ".git");
+            if (Directory.Exists(gitEntry) || File.Exists(gitEntry)) return true;
+        }
+        return false;
     }
 
     public static void ClearGutter(Scintilla sci)

@@ -46,6 +46,13 @@ jobs:
             NOREA_Suite_Portable.zip
             checksums.txt
 
+      - name: Verify release artifact attestations
+        run: |
+          gh attestation verify NOREA_Suite_Portable.zip --repo $env:GITHUB_REPOSITORY --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/release.yml"
+          gh attestation verify checksums.txt --repo $env:GITHUB_REPOSITORY --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/release.yml"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

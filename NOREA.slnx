@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="NOREA.Benchmarks/NOREA.Benchmarks.csproj" />
   <Project Path="NOREA.Tests/NOREA.Tests.csproj" />
   <Project Path="NoreaCli/NoreaCli.csproj" />
   <Project Path="NoreaLauncher/NoreaLauncher.csproj" />
