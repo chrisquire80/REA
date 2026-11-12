@@ -50,11 +50,21 @@ public static class AiSetup
         string targetExe = Path.Combine(options.InstallDirectory, "norea.exe");
         string targetCmd = Path.Combine(options.InstallDirectory, "norea.cmd");
 
-        if (options.InstallCli && !string.IsNullOrWhiteSpace(options.CurrentExecutable) &&
-            File.Exists(options.CurrentExecutable) &&
-            !string.Equals(options.CurrentExecutable, targetExe, StringComparison.OrdinalIgnoreCase))
+        string? currentExe = options.CurrentExecutable;
+        string exeName = Path.GetFileNameWithoutExtension(currentExe ?? "");
+        if (!exeName.Equals("norea", StringComparison.OrdinalIgnoreCase) &&
+            !exeName.Equals("NoreaCli", StringComparison.OrdinalIgnoreCase))
         {
-            File.Copy(options.CurrentExecutable, targetExe, overwrite: true);
+            var cand = Path.Combine(NoreaBridge.DetectWorkspaceDir(), "dist", "norea.exe");
+            if (File.Exists(cand)) currentExe = cand;
+            else currentExe = null;
+        }
+
+        if (options.InstallCli && !string.IsNullOrWhiteSpace(currentExe) &&
+            File.Exists(currentExe) &&
+            !string.Equals(currentExe, targetExe, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(currentExe, targetExe, overwrite: true);
         }
 
         if (options.InstallCli)
