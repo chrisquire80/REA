@@ -76,4 +76,36 @@ public class LauncherSettingsTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void Catalog_Load_ExcludesBenchmarkAndToolProjects()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"norea-benchmark-filter-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            string benchDir = Path.Combine(root, "NOREA.Benchmarks");
+            Directory.CreateDirectory(benchDir);
+            File.WriteAllText(Path.Combine(benchDir, "NOREA.Benchmarks.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>1.0.0</Version></PropertyGroup></Project>");
+
+            string testsDir = Path.Combine(root, "NOREA.Tests");
+            Directory.CreateDirectory(testsDir);
+            File.WriteAllText(Path.Combine(testsDir, "NOREA.Tests.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>1.0.0</Version></PropertyGroup></Project>");
+
+            string appDir = Path.Combine(root, "NotepadREA");
+            Directory.CreateDirectory(appDir);
+            File.WriteAllText(Path.Combine(appDir, "NotepadREA.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>2.2.0</Version></PropertyGroup></Project>");
+
+            var settings = new LauncherSettings { WorkspaceDir = root };
+            var apps = CatalogService.LoadApps(settings);
+
+            Assert.DoesNotContain(apps, a => a.Id.Contains("Benchmark", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(apps, a => a.Id.Contains("Test", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(apps, a => string.Equals(a.Id, "NotepadREA", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }

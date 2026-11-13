@@ -66,9 +66,6 @@ public static class AiSetup
         {
             File.Copy(currentExe, targetExe, overwrite: true);
         }
-        {
-            File.Copy(options.CurrentExecutable, targetExe, overwrite: true);
-        }
 
         if (options.InstallCli)
             WriteAtomically(targetCmd, "@echo off\r\n\"%~dp0norea.exe\" %*\r\n");

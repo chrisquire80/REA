@@ -328,7 +328,8 @@ public static class CatalogService
         if (string.IsNullOrWhiteSpace(name)) return true;
         string lower = name.Trim().ToLowerInvariant();
         return lower is "norea" or "noreacli" or "norea-cli" or "norealauncher" or "noreamcp"
-            || lower.EndsWith("tests") || lower.EndsWith(".tests");
+            || lower.EndsWith("tests") || lower.EndsWith(".tests")
+            || lower.Contains("benchmark") || lower.Contains("benchmarks");
     }
 
     static void DiscoverWorkspaceProjects(string ws, List<AppEntry> list, LauncherSettings settings)

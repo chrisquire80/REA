@@ -1,8 +1,5 @@
 using NotepadREA;
-<<<<<<< HEAD
 using System.Runtime.ExceptionServices;
-=======
->>>>>>> origin/main
 
 namespace NOREA.Tests;
 
