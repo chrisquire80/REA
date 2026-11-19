@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
-using Microsoft.Win32;
+using NoreaDesign;
 
 namespace NoreaLauncher;
 
@@ -36,90 +36,47 @@ public sealed record LauncherTheme(
     Color SecondaryBtnHoverBg,
     Color SecondaryBtnFg)
 {
-    static Color C(int rgb) => Color.FromArgb(255, (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255);
+    public static readonly LauncherTheme Dark = FromPalette(NoreaDesign.NoreaStyles.Dark);
+    public static readonly LauncherTheme Light = FromPalette(NoreaDesign.NoreaStyles.Light);
 
-    // Dark UI accessibile (WCAG >= 4.5:1): canvas #121212, card #1E1E1E, hover #252525, bordi morbidi, accenti desaturati
-    public static readonly LauncherTheme Dark = new(
-        Name: "Dark",
-        IsDark: true,
-        Bg: C(0x121212),
-        HeaderBg: C(0x18181A),
-        PanelBg: C(0x161618),
-        CardBg: C(0x1E1E1E),
-        CardHoverBg: C(0x252525),
-        CardSelectedBg: C(0x262932),
-        InputBg: C(0x161618),
-        Border: C(0x2E2E32),          // ~rgba(255,255,255,0.08) su #1E1E1E
-        BorderStrong: C(0x43454E),
-        TextPrimary: C(0xE0E0E0),     // ~90% opacità
-        TextSecondary: C(0xB4B4BE),   // ~70% opacità (contrasto > 6.2:1 su #1E1E1E)
-        TextMuted: C(0xA0A0AA),       // ~65% opacità (contrasto >= 4.7:1 su #1E1E1E e #121212)
-        BrandRed: C(0xFF7B7B),        // Corallo desaturato accessibile
-        BrandBlue: C(0x79C0FF),       // Celeste pastello ad alto contrasto per testi tecnici (#79C0FF)
-        BadgeBg: C(0x1E293B),
-        BadgeFg: C(0x93C5FD),
-        VersionStableBg: C(0x252830),
-        VersionStableFg: C(0xA5B4FC),
-        VersionCanaryBg: C(0x2D1E20),
-        VersionCanaryFg: C(0xFF7B7B),
-        StatusGreen: C(0x4ADE80),
-        StatusAmber: C(0xFBBF24),
-        StatusCoral: C(0xFF7B7B),
-        PrimaryBtnBg: C(0xE4E4E8),
-        PrimaryBtnFg: C(0x121214),
-        SecondaryBtnBg: C(0x252529),
-        SecondaryBtnHoverBg: C(0x2F2F35),
-        SecondaryBtnFg: C(0xE0E0E4));
-
-    public static readonly LauncherTheme Light = new(
-        Name: "Light",
-        IsDark: false,
-        Bg: C(0xF4F5F7),
-        HeaderBg: C(0xFFFFFF),
-        PanelBg: C(0xECEEF2),
-        CardBg: C(0xFFFFFF),
-        CardHoverBg: C(0xF8F9FB),
-        CardSelectedBg: C(0xEBF2FF),
-        InputBg: C(0xFFFFFF),
-        Border: C(0xDCDFE6),
-        BorderStrong: C(0xB8BEC9),
-        TextPrimary: C(0x18181B),
-        TextSecondary: C(0x4B4B55),
-        TextMuted: C(0x646470),
-        BrandRed: C(0xC83E3E),
-        BrandBlue: C(0x1D4ED8),
-        BadgeBg: C(0xE0ECFF),
-        BadgeFg: C(0x1E40AF),
-        VersionStableBg: C(0xE5E7EB),
-        VersionStableFg: C(0x374151),
-        VersionCanaryBg: C(0xFEE2E2),
-        VersionCanaryFg: C(0x991B1B),
-        StatusGreen: C(0x16A34A),
-        StatusAmber: C(0xD97706),
-        StatusCoral: C(0xDC2626),
-        PrimaryBtnBg: C(0x18181B),
-        PrimaryBtnFg: C(0xFFFFFF),
-        SecondaryBtnBg: C(0xF1F2F6),
-        SecondaryBtnHoverBg: C(0xE4E6EE),
-        SecondaryBtnFg: C(0x18181B));
+    static LauncherTheme FromPalette(NoreaPalette palette) => new(
+        Name: palette.Name,
+        IsDark: palette.IsDark,
+        Bg: palette.Bg,
+        HeaderBg: palette.HeaderBg,
+        PanelBg: palette.PanelBg,
+        CardBg: palette.CardBg,
+        CardHoverBg: palette.CardHoverBg,
+        CardSelectedBg: palette.CardSelectedBg,
+        InputBg: palette.InputBg,
+        Border: palette.Border,
+        BorderStrong: palette.BorderStrong,
+        TextPrimary: palette.TextPrimary,
+        TextSecondary: palette.TextSecondary,
+        TextMuted: palette.TextMuted,
+        BrandRed: palette.BrandRed,
+        BrandBlue: palette.BrandBlue,
+        BadgeBg: palette.BadgeBg,
+        BadgeFg: palette.BadgeFg,
+        VersionStableBg: palette.VersionStableBg,
+        VersionStableFg: palette.VersionStableFg,
+        VersionCanaryBg: palette.VersionCanaryBg,
+        VersionCanaryFg: palette.VersionCanaryFg,
+        StatusGreen: palette.StatusGreen,
+        StatusAmber: palette.StatusAmber,
+        StatusCoral: palette.StatusCoral,
+        PrimaryBtnBg: palette.PrimaryBtnBg,
+        PrimaryBtnFg: palette.PrimaryBtnFg,
+        SecondaryBtnBg: palette.SecondaryBtnBg,
+        SecondaryBtnHoverBg: palette.SecondaryBtnHoverBg,
+        SecondaryBtnFg: palette.SecondaryBtnFg);
 
     public static LauncherTheme FromAppearance(string mode) => mode switch
     {
         "Light" => Light,
         "Dark" => Dark,
-        _ => IsSystemDark() ? Dark : Light,
+        _ => NoreaDesign.NoreaStyles.CurrentPalette.IsDark ? Dark : Light,
     };
-
-    static bool IsSystemDark()
-    {
-        try
-        {
-            using var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-            if (k?.GetValue("AppsUseLightTheme") is int v) return v == 0;
-        }
-        catch { }
-        return true;
-    }
 
     public static Color ParseHex(string? hex, Color fallback)
     {
@@ -266,6 +223,44 @@ public static class GraphicsHelper
                 g.FillRectangle(accBrush, ox + 12f * u, oy + 16.2f * u, 8.5f * u, 2.0f * u);
                 using (var b3 = new SolidBrush(Color.FromArgb(63, 163, 77)))
                     g.FillRectangle(b3, ox + 12f * u, oy + 19.9f * u, 6.5f * u, 2.0f * u);
+                break;
+
+            case "transfer":
+                using (var folder = new GraphicsPath())
+                {
+                    folder.AddLines(
+                    [
+                        new PointF(ox + 6.5f * u, oy + 10f * u),
+                        new PointF(ox + 13.5f * u, oy + 10f * u),
+                        new PointF(ox + 16f * u, oy + 12.5f * u),
+                        new PointF(ox + 25f * u, oy + 12.5f * u),
+                        new PointF(ox + 25f * u, oy + 25f * u),
+                        new PointF(ox + 6.5f * u, oy + 25f * u),
+                    ]);
+                    folder.CloseFigure();
+                    g.FillPath(white, folder);
+                }
+                using (var upload = new SolidBrush(Color.FromArgb(15, 76, 158)))
+                    g.FillPolygon(upload,
+                    [
+                        new PointF(ox + 9.5f * u, oy + 13.5f * u),
+                        new PointF(ox + 18.5f * u, oy + 13.5f * u),
+                        new PointF(ox + 18.5f * u, oy + 11.5f * u),
+                        new PointF(ox + 23f * u, oy + 15.5f * u),
+                        new PointF(ox + 18.5f * u, oy + 19f * u),
+                        new PointF(ox + 18.5f * u, oy + 17.5f * u),
+                        new PointF(ox + 9.5f * u, oy + 17.5f * u),
+                    ]);
+                g.FillPolygon(accBrush,
+                [
+                    new PointF(ox + 22.5f * u, oy + 19.5f * u),
+                    new PointF(ox + 13.5f * u, oy + 19.5f * u),
+                    new PointF(ox + 13.5f * u, oy + 18f * u),
+                    new PointF(ox + 9f * u, oy + 22f * u),
+                    new PointF(ox + 13.5f * u, oy + 25.5f * u),
+                    new PointF(ox + 13.5f * u, oy + 23.5f * u),
+                    new PointF(ox + 22.5f * u, oy + 23.5f * u),
+                ]);
                 break;
 
             default:

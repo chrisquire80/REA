@@ -8,11 +8,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>2.2.0</Version>
+    <Version>2.2.2</Version>
     <Product>NOREA Launcher</Product>
     <PublishReadyToRun>true</PublishReadyToRun>
     <TieredPGO>true</TieredPGO>
     <OptimizationPreference>Speed</OptimizationPreference>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\NoreaDesign\NoreaDesign.cs" Link="NoreaDesign\NoreaDesign.cs" />
+  </ItemGroup>
 
 </Project>

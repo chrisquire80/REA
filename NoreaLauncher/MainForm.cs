@@ -13,26 +13,26 @@ public sealed class MainForm : Form
     AppEntry? _selectedApp;
 
     // Struttura interfaccia
-    readonly Panel _titleBar = new() { Dock = DockStyle.Top, Height = 44 };
-    readonly Panel _toolbar = new() { Dock = DockStyle.Top, Height = 50 };
+    readonly Panel _titleBar = new() { Dock = DockStyle.Top, Height = 48 };
+    readonly Panel _toolbar = new() { Dock = DockStyle.Top, Height = 54 };
     readonly InfoBarControl _infoBar = new();
-    readonly Panel _statusBar = new() { Dock = DockStyle.Bottom, Height = 32 };
+    readonly Panel _statusBar = new() { Dock = DockStyle.Bottom, Height = 34 };
 
     // Layout Master-Detail
     readonly Panel _mainHost = new() { Dock = DockStyle.Fill };
-    readonly Panel _sidebar = new() { Dock = DockStyle.Left, Width = 310 };
+    readonly Panel _sidebar = new() { Dock = DockStyle.Left, Width = 328 };
     readonly Panel _sidebarList = new() { Dock = DockStyle.Fill, AutoScroll = true };
-    readonly Panel _sidebarHeader = new() { Dock = DockStyle.Top, Height = 32 };
+    readonly Panel _sidebarHeader = new() { Dock = DockStyle.Top, Height = 40 };
     readonly AppDetailView _detailView = new();
     readonly Panel _emptyStatePanel = new() { Dock = DockStyle.Fill };
 
     readonly SettingsView _settingsView;
 
     // Toolbar controls
-    readonly Button _btnRefresh = new() { Text = "", Size = new Size(32, 30), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-    readonly Panel _searchBox = new() { Size = new Size(260, 30), Padding = new Padding(8, 5, 62, 5) };
-    readonly TextBox _tbSearch = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, PlaceholderText = "Cerca apps...", Font = new Font("Segoe UI", 9.2f) };
-    readonly Button _chipCtrlK = new() { Text = "Ctrl+K", Size = new Size(54, 20), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Font = new Font("Segoe UI", 7.5f, FontStyle.Bold) };
+    readonly Button _btnRefresh = new() { Text = "", Size = new Size(36, 34), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+    readonly Panel _searchBox = new() { Size = new Size(300, 34), Padding = new Padding(10, 6, 76, 6) };
+    readonly TextBox _tbSearch = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, PlaceholderText = "Cerca applicazioni", Font = new Font("Segoe UI", 9.8f) };
+    readonly Button _chipCtrlK = new() { Text = "Ctrl+K", Size = new Size(64, 22), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Font = new Font("Segoe UI", 8f, FontStyle.Bold) };
 
     // Filtri interattivi barra di stato
     string _activeFilter = "ALL"; // "ALL", "INSTALLED", "READY"
@@ -51,7 +51,7 @@ public sealed class MainForm : Form
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int sz);
 
-    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.0");
+    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.2");
 
     public MainForm()
     {
@@ -208,18 +208,19 @@ public sealed class MainForm : Form
             using var border = new Pen(_theme.Border);
 
             // Brand
-            int sepX = 86;
+            GraphicsHelper.DrawNoreaPrismLogo(g, new RectangleF(16, 9, 22, 30), _theme.BrandBlue, _theme.BrandRed);
+            int sepX = 110;
             using (var brandFont = new Font("Segoe UI", 11f, FontStyle.Bold))
             {
                 var sz = TextRenderer.MeasureText(g, "NOREA", brandFont, Size.Empty, TextFormatFlags.NoPadding);
-                sepX = 16 + sz.Width + 14;
-                TextRenderer.DrawText(g, "NOREA", brandFont, new Point(16, 12), _theme.TextPrimary, TextFormatFlags.NoPadding);
+                sepX = 44 + sz.Width + 16;
+                TextRenderer.DrawText(g, "NOREA", brandFont, new Point(44, 15), _theme.TextPrimary, TextFormatFlags.NoPadding);
             }
 
             g.DrawLine(border, sepX, 12, sepX, 31);
 
             using (var suiteFont = new Font("Consolas", 8.2f, FontStyle.Regular))
-                TextRenderer.DrawText(g, $"APP SUITE · {LauncherVersion}", suiteFont, new Point(sepX + 12, 15), _theme.TextSecondary, TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g, $"LAUNCHER · {LauncherVersion}", suiteFont, new Point(sepX + 12, 17), _theme.TextSecondary, TextFormatFlags.NoPadding);
 
             // Pulsanti finestra
             int w = _titleBar.Width, h = _titleBar.Height;
@@ -334,7 +335,8 @@ public sealed class MainForm : Form
     void LayoutToolbar()
     {
         int right = _toolbar.Width - 16;
-        _searchBox.Location = new Point(right - _searchBox.Width, 10);
+        _searchBox.Location = new Point(right - _searchBox.Width, (_toolbar.Height - _searchBox.Height) / 2);
+        _btnRefresh.Location = new Point(16, (_toolbar.Height - _btnRefresh.Height) / 2);
     }
 
     void BuildMasterDetail()
@@ -345,7 +347,7 @@ public sealed class MainForm : Form
             var g = e.Graphics;
             g.Clear(_theme.PanelBg);
             using var font = new Font("Consolas", 8f, FontStyle.Bold);
-            TextRenderer.DrawText(g, "APPLICAZIONI SUITE", font, new Point(16, 8), _theme.TextMuted);
+            TextRenderer.DrawText(g, "LE TUE APPLICAZIONI", font, new Point(18, 12), _theme.TextMuted);
             using var p = new Pen(_theme.Border);
             g.DrawLine(p, 0, _sidebarHeader.Height - 1, _sidebar.Width, _sidebarHeader.Height - 1);
         };
@@ -469,10 +471,10 @@ public sealed class MainForm : Form
 
             // Indicatore di stato / connessione a semaforo
             using var dotBrush = new SolidBrush(_theme.StatusGreen);
-            g.FillEllipse(dotBrush, 16, 12, 8, 8);
+            g.FillEllipse(dotBrush, 18, 13, 8, 8);
 
             using var fStatus = new Font("Segoe UI", 8.5f);
-            TextRenderer.DrawText(g, "Sincronizzato col workspace", fStatus, new Point(30, 7), _theme.TextSecondary);
+            TextRenderer.DrawText(g, "Workspace sincronizzato", fStatus, new Point(34, 9), _theme.TextSecondary);
 
             // Chip interattivi contatori
             using var monoFont = new Font("Consolas", 8f, FontStyle.Bold);
@@ -696,7 +698,7 @@ public sealed class MainForm : Form
             _infoBar.ShowMessage("Verifica disponibilità aggiornamenti su GitHub...", InfoBarControl.BarType.Info, _theme);
         }
 
-        string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.0");
+        string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.2");
         var release = await CloudUpdateService.CheckForUpdatesAsync(_settings.GitHubRepo, currentVer, _settings.IncludePreReleases);
 
         if (release != null && release.IsUpdateAvailable)

@@ -33,16 +33,24 @@ Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'a
 * **Find & Replace in Files**: Finestra multi-thread parallelizzata (`Ctrl+Shift+F`) con supporto a sottocartelle, regex e navigazione rapida.
 * **Librerie Native Incorporate (Self-Healing)**: `Scintilla.dll` e `Lexilla.dll` sono incorporate direttamente nell'eseguibile ed auto-estratte al primo avvio se mancanti su disco, rendendo l'eseguibile autonomo al 100%.
 
-### 2. [NoreaLauncher](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaLauncher/NoreaLauncher.csproj) (v1.1.0)
-Launcher della suite in stile **Master-Detail (JetBrains Toolbox / Visual Studio)**.
-* **Layout Master-Detail & Accessibilità Dark UI**: Superfici scure graduate a contrasto elevato (`#121212`, `#1E1E1E`), badge sobri desaturati conformi ai criteri di contrasto WCAG.
+### 2. [NoreaLauncher](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaLauncher/NoreaLauncher.csproj) (v2.2.2)
+Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro e componenti condivisi.
+* **Layout Master-Detail**: Ricerca rapida, elenco applicazioni, stato e azioni principali coerenti con il sistema di design NOREA.
+* **Sistema di design riutilizzabile**: Token colore, tipografia, spaziatura e controlli per i prossimi programmi NOREA in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
 * **Telemetria Live dei Processi**: Monitoraggio in tempo reale di RAM (Working Set), tempo di attività (Uptime), thread attivi e PID per ogni applicazione della suite in esecuzione.
 * **Integrazione CLI nel PATH di Windows (1-Click)**: Configura con un clic `%LocalAppData%\Programs\NotepadREA` e `NOREA` nel `PATH` utente con broadcast `WM_SETTINGCHANGE`, permettendo di avviare `notepadrea` o `norea` da qualsiasi terminale.
 * **Client Aggiornamenti Cloud (GitHub Releases)**: Verifica automatica all'avvio o manuale delle release pubblicate su GitHub, con download streaming e aggiornamento a caldo.
 * **Cronologia File Recenti**: Accesso rapido ai file aperti di recente dall'editor direttamente dal menu contestuale del launcher.
 * **Integrità & Rollback**: Calcolo e verifica SHA-256 dei binari con manifesto `manifest.json`. Aggiornamento atomico con backup `.prev` e ripristino di emergenza a caldo.
 
-### 3. [NoreaCli & MCP Server](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaCli/NoreaCli.csproj) (v2.2.0)
+### 3. [WinSCPREA](file:///c:/Users/ChristianRobecchi/Downloads/REA/WinSCPREA/WinSCPREA.csproj) (v1.0.2)
+Client SFTP e file manager Windows a due pannelli, ricostruito da zero in C# / WinForms .NET 10 sulla base dell'analisi statica di WinSCP 6.7.1.
+* Connessioni SFTP con password o chiave privata SSH e verifica dell'impronta host SHA-256.
+* Salvataggio dei siti senza password; trasferimenti ricorsivi e gestione di file e cartelle remoti.
+* Harness Python Click basato su [CLI-Anything](WinSCPREA/agent-harness/cli_anything/winscprea/README.md): `winscprea --json site list`, REPL interattiva e comandi per elenco, trasferimento e gestione remota. La logica SFTP resta condivisa con l'app tramite `NoreaCli` e SSH.NET.
+* Perimetro iniziale limitato a SFTP. Analisi e limiti: [ANALISI_WINSCP_REA.md](ANALISI_WINSCP_REA.md).
+
+### 4. [NoreaCli & MCP Server](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaCli/NoreaCli.csproj) (v2.3.0)
 Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)** conforme alle specifiche 2024-11-05 per collegare la suite ad agenti AI come **Claude Code** e **Google Antigravity**:
 * **Comandi CLI nativi**:
   ```powershell
@@ -60,7 +68,7 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_notify`: notifica sul desktop l'avanzamento o la conclusione di task lunghi tramite flyout toast.
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
-### 4. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
+### 5. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
 Suite di test automatizzati con **xUnit** (52 test):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
@@ -74,10 +82,10 @@ Suite di test automatizzati con **xUnit** (52 test):
 
 ## 🛡️ Clean-Room Engineering Guarantee
 
-Il codice sorgente di **NotepadREA** e **NoreaLauncher** è sviluppato **interamente da zero in C# .NET 10**:
-1. Nessuna riga di codice C++ o GPL proveniente da Notepad++ è inclusa nei sorgenti o nei binari.
-2. Il motore di editing si basa sul componente open source permissivo **Scintilla5.NET** (licenza Scintilla/Lexilla).
-3. Tutti i metadati di analisi statica e compatibilità sono documentati in [ANALISI_REA.md](file:///c:/Users/ChristianRobecchi/Downloads/REA/ANALISI_REA.md).
+Il codice sorgente di **NotepadREA**, **WinSCPREA** e **NoreaLauncher** è sviluppato **interamente da zero in C# .NET 10**:
+1. Nessun codice sorgente o risorsa grafica di Notepad++ o WinSCP è incluso nei sorgenti o nei binari delle ricostruzioni.
+2. NotepadREA usa Scintilla5.NET; WinSCPREA usa SSH.NET per SFTP.
+3. Le analisi sono documentate in ANALISI_REA.md e ANALISI_WINSCP_REA.md.
 
 ---
 
@@ -98,6 +106,7 @@ dotnet test NOREA.Tests\NOREA.Tests.csproj
 # Pubblicazione manuale binari ad alte prestazioni in dist\
 dotnet publish NotepadREA\NotepadREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
 dotnet publish NoreaLauncher\NoreaLauncher.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
+dotnet publish WinSCPREA\WinSCPREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
 
 # Registrazione associazioni file ed estensioni (.txt, .cs, .py, ecc.)
 .\installa_associazioni.ps1

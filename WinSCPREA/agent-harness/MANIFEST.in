@@ -1,0 +1,4 @@
+include CLI_ANYTHING_LICENSE.txt
+include cli_anything/winscprea/README.md
+include cli_anything/winscprea/skills/SKILL.md
+recursive-include cli_anything/winscprea *.py

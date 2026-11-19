@@ -18,11 +18,13 @@ if ($SelfContained) {
     dotnet publish "$root\NotepadREA\NotepadREA.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaLauncher\NoreaLauncher.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaCli\NoreaCli.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
+    dotnet publish "$root\WinSCPREA\WinSCPREA.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
 } else {
     Write-Host "[1/3] Compilazione Portatile ad alte prestazioni..." -ForegroundColor Yellow
     dotnet publish "$root\NotepadREA\NotepadREA.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaLauncher\NoreaLauncher.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaCli\NoreaCli.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
+    dotnet publish "$root\WinSCPREA\WinSCPREA.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
 }
 if (Test-Path "$outDir\NoreaCli.exe") { Copy-Item "$outDir\NoreaCli.exe" "$outDir\norea.exe" -Force }
 Set-Content -Path "$outDir\norea.cmd" -Value "@echo off`r`n`"%~dp0norea.exe`" %*" -Encoding ASCII
@@ -30,6 +32,8 @@ Set-Content -Path "$outDir\norea.cmd" -Value "@echo off`r`n`"%~dp0norea.exe`" %*
 Write-Host "[2/3] Copia script di utilità e documentazione..." -ForegroundColor Yellow
 Copy-Item "$root\installa_associazioni.ps1" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
 Copy-Item "$root\rimuovi_associazioni.ps1" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
+Copy-Item "$root\THIRD_PARTY_NOTICES.md" -Destination "$outDir\" -Force
+Copy-Item "$root\ANALISI_WINSCP_REA.md" -Destination "$outDir\" -Force
 
 $readmeContent = @"
 ==================================================
@@ -41,6 +45,7 @@ COME USARE LA SUITE SU QUESTO PC:
 1. Avvio immediato:
    - Fai doppio clic su "NoreaLauncher.exe" per aprire il launcher della suite.
    - Oppure apri direttamente "NotepadREA.exe" per l'editor.
+   - Apri "WinSCPREA.exe" per il client SFTP a due pannelli.
 
 2. Requisiti:
    - Windows 10 o Windows 11 (x64).

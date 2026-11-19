@@ -20,6 +20,21 @@ public sealed class AnalysisSection
     public List<AnalysisRow> Rows { get; set; } = [];
 }
 
+public sealed class UsageExample
+{
+    public string Title { get; set; } = "";
+    public string Command { get; set; } = "";
+    public string Description { get; set; } = "";
+}
+
+public sealed class UsageGuide
+{
+    public string Title { get; set; } = "Come si usa";
+    public string Introduction { get; set; } = "";
+    public List<UsageExample> Examples { get; set; } = [];
+    public List<string> Notes { get; set; } = [];
+}
+
 public sealed class AppEntry
 {
     public string Id { get; set; } = "";
@@ -41,6 +56,7 @@ public sealed class AppEntry
     public string LastUpdatedText { get; set; } = "10 nov 2026";
     public bool IsPlanned { get; set; }
     public AnalysisSection? Analysis { get; set; }
+    public UsageGuide? UsageGuide { get; set; }
 
     [JsonIgnore] public string DisplayName => Prefix + Suffix;
     [JsonIgnore] public string? InstalledExePath { get; set; }
@@ -544,5 +560,42 @@ public static class CatalogService
                 ]
             }
         },
+        new()
+        {
+            Id = "WinSCPREA", Prefix = "WinSCP", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v1.0.2",
+            Runtime = "SSH.NET · .NET 10",
+            Tagline = "Client SFTP e file manager a due pannelli",
+            Description = "Ricostruzione nativa da zero basata sull'analisi statica di WinSCP 6.7.1.",
+            IconType = "transfer", AccentHex = "#6DA9FF", ProjectPath = "WinSCPREA", BinaryPath = @"dist\WinSCPREA.exe",
+            AnalysisPath = "ANALISI_WINSCP_REA.md", EstimatedSizeMb = 6.0, LastUpdatedText = "18 nov 2026", IsPlanned = false,
+            Analysis = new AnalysisSection
+            {
+                Title = "Esito Analisi Statica (WinSCP 6.7.1)",
+                Rows =
+                [
+                    new AnalysisRow { Label = "Target analizzato:", Value = "WinSCP.exe (PE32, x86, 20,4 MB, firmato)" },
+                    new AnalysisRow { Label = "Ricostruzione NOREA:", Value = "C# .NET 10 WinForms, SFTP con SSH.NET" }
+                ]
+            },
+            UsageGuide = new UsageGuide
+            {
+                Title = "Guida rapida · CLI SFTP",
+                Introduction = "WinSCPREA si usa anche dal terminale con winscprea. Per il primo avvio apri PowerShell nella cartella WinSCPREA\\agent-harness e installa il pacchetto nel virtualenv del progetto.",
+                Examples =
+                [
+                    new UsageExample { Title = "Prima installazione", Command = "py -3 -m venv .venv\n.\\.venv\\Scripts\\Activate.ps1\npython -m pip install -e .", Description = "Esegui una volta dalla cartella WinSCPREA\\agent-harness." },
+                    new UsageExample { Title = "Apri la guida o la REPL", Command = "winscprea --help\nwinscprea", Description = "La REPL accetta gli stessi comandi; digita help o exit." },
+                    new UsageExample { Title = "Registra un sito e verifica l'elenco", Command = "winscprea site add staging --host sftp.example.net --username deploy\nwinscprea site list", Description = "Sostituisci i valori di esempio con i dati del server. Le password non vengono salvate nel profilo." },
+                    new UsageExample { Title = "Elenca e trasferisci file", Command = "winscprea remote list --site staging --path /incoming\nwinscprea upload --site staging --remote-dir /incoming .\\release.zip\nwinscprea download --site staging --remote-path /incoming/report.csv --local-dir .\\downloads", Description = "I trasferimenti non sovrascrivono i file esistenti." },
+                    new UsageExample { Title = "Usa output per agenti", Command = "winscprea --json site list", Description = "--json restituisce una risposta JSON leggibile da script e agenti." }
+                ],
+                Notes =
+                [
+                    "Nelle sessioni interattive la password viene richiesta senza mostrarla; gli script possono usare WINSCPREA_PASSWORD. Per chiavi cifrate imposta WINSCPREA_KEY_PASSPHRASE.",
+                    "Alla prima connessione verifica l'impronta SHA-256 con il gestore del server, poi ripeti con --trust-host-key e l'impronta esatta.",
+                    "Rinomina ed eliminazione remota richiedono --yes; usa --dry-run per controllare una modifica prima di eseguirla."
+                ]
+            }
+        }
     ];
 }

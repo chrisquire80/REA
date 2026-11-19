@@ -8,9 +8,9 @@ public sealed class AppDetailView : Panel
     AppEntry? _app;
     LauncherTheme _theme = LauncherTheme.Dark;
 
-    readonly Panel _header = new() { Dock = DockStyle.Top, Height = 100 };
+    readonly Panel _header = new() { Dock = DockStyle.Top, Height = 112 };
     readonly Panel _body = new() { Dock = DockStyle.Fill, AutoScroll = true };
-    readonly Panel _actionsBar = new() { Dock = DockStyle.Bottom, Height = 64 };
+    readonly Panel _actionsBar = new() { Dock = DockStyle.Bottom, Height = 72 };
 
     // Split button
     readonly Button _btnOpenMain = new() { Height = 36, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
@@ -104,27 +104,28 @@ public sealed class AppDetailView : Panel
 
     void LayoutActions()
     {
-        int h = 36;
+        int h = 38;
         int y = (_actionsBar.Height - h) / 2;
         int x = 24;
 
-        _btnOpenMain.Size = new Size(130, h);
+        _btnOpenMain.Size = new Size(140, h);
         _btnOpenMain.Location = new Point(x, y);
 
-        _btnOpenSplit.Size = new Size(32, h);
-        _btnOpenSplit.Location = new Point(x + 130, y);
+        _btnOpenSplit.Size = new Size(36, h);
+        _btnOpenSplit.Location = new Point(x + 140, y);
 
-        _btnAnalysis.Size = new Size(140, h);
-        _btnAnalysis.Location = new Point(x + 130 + 32 + 12, y);
+        _btnAnalysis.Size = new Size(148, h);
+        _btnAnalysis.Location = new Point(x + 140 + 36 + 12, y);
 
-        _btnMore.Size = new Size(36, h);
-        _btnMore.Location = new Point(_actionsBar.Width - 24 - 36, y);
+        _btnMore.Size = new Size(40, h);
+        _btnMore.Location = new Point(_actionsBar.Width - 24 - 40, y);
     }
 
     public void SetApp(AppEntry? app, LauncherTheme theme)
     {
         _app = app;
         _theme = theme;
+        _body.AutoScrollPosition = Point.Empty;
         ApplyVisualStyles();
         _header.Invalidate();
         _body.Invalidate();
@@ -167,7 +168,7 @@ public sealed class AppDetailView : Panel
         {
             _btnOpenMain.Text = "Aggiorna";
             _btnOpenMain.BackColor = _theme.BrandBlue;
-            _btnOpenMain.ForeColor = Color.Black;
+            _btnOpenMain.ForeColor = Color.White;
             _btnOpenMain.Enabled = true;
         }
         else
@@ -178,18 +179,25 @@ public sealed class AppDetailView : Panel
             _btnOpenMain.Enabled = true;
         }
         _btnOpenMain.Font = BtnOpenFont;
+        _btnOpenMain.UseVisualStyleBackColor = false;
+        _btnOpenMain.FlatAppearance.BorderSize = 0;
+        _btnOpenMain.FlatAppearance.MouseOverBackColor = ControlPaint.Light(_btnOpenMain.BackColor, .1f);
+        _btnOpenMain.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(_btnOpenMain.BackColor, .08f);
 
         _btnOpenSplit.BackColor = isRunning ? _theme.StatusCoral : _theme.SecondaryBtnBg;
         _btnOpenSplit.ForeColor = isRunning ? Color.White : _theme.SecondaryBtnFg;
+        _btnOpenSplit.UseVisualStyleBackColor = false;
         _btnOpenSplit.FlatAppearance.BorderColor = _theme.BorderStrong;
 
         _btnAnalysis.BackColor = _theme.SecondaryBtnBg;
         _btnAnalysis.ForeColor = _theme.SecondaryBtnFg;
+        _btnAnalysis.UseVisualStyleBackColor = false;
         _btnAnalysis.FlatAppearance.BorderColor = _theme.BorderStrong;
         _btnAnalysis.Font = BtnAnalysisFont;
 
         _btnMore.BackColor = _theme.SecondaryBtnBg;
         _btnMore.ForeColor = _theme.SecondaryBtnFg;
+        _btnMore.UseVisualStyleBackColor = false;
         _btnMore.FlatAppearance.BorderColor = _theme.BorderStrong;
         _btnMore.Font = BtnMoreFont;
 
@@ -209,11 +217,11 @@ public sealed class AppDetailView : Panel
         if (_app == null) return;
 
         // Icona
-        var iconRect = new Rectangle(24, 20, 56, 56);
+        var iconRect = new Rectangle(28, 24, 60, 60);
         GraphicsHelper.DrawAppIcon(g, iconRect, _app);
 
         // Titolo & Runtime & Version
-        int tx = 96, ty = 22;
+        int tx = 104, ty = 26;
         TextRenderer.DrawText(g, _app.DisplayName, TitleFont, new Point(tx, ty), _theme.TextPrimary, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 
         var titleSize = TextRenderer.MeasureText(g, _app.DisplayName, TitleFont, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
@@ -234,18 +242,20 @@ public sealed class AppDetailView : Panel
     {
         var g = e.Graphics;
         g.Clear(_theme.Bg);
+        g.TranslateTransform(_body.AutoScrollPosition.X, _body.AutoScrollPosition.Y);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
         if (_app == null)
         {
+            _body.AutoScrollMinSize = Size.Empty;
             TextRenderer.DrawText(g, "Seleziona un'applicazione dalla barra laterale.", EmptyPromptFont, new Point(24, 24), _theme.TextMuted);
             return;
         }
 
-        int y = 20;
-        int left = 24;
-        int contentW = _body.Width - 48;
+        int y = 24;
+        int left = 28;
+        int contentW = Math.Max(1, _body.ClientSize.Width - 56);
 
         // Telemetria Live se in esecuzione
         if (_app.IsRunning)
@@ -253,42 +263,43 @@ public sealed class AppDetailView : Panel
             var telem = LauncherUtil.GetProcessTelemetry(_app.RunningPid);
             if (telem.HasValue)
             {
-                var telemRect = new RectangleF(left, y, contentW, 58);
+                var telemRect = new RectangleF(left, y, contentW, 62);
                 using var tPath = GraphicsHelper.RoundRect(telemRect, 6f);
-                using (var b = new SolidBrush(Color.FromArgb(20, 45, 25))) g.FillPath(b, tPath);
-                using (var p = new Pen(Color.FromArgb(40, 160, 60))) g.DrawPath(p, tPath);
+                using (var b = new SolidBrush(_theme.CardBg)) g.FillPath(b, tPath);
+                using (var p = new Pen(_theme.Border)) g.DrawPath(p, tPath);
+                using (var accent = new SolidBrush(_theme.StatusGreen)) g.FillRectangle(accent, left, y + 9, 3, 44);
 
                 int ty = y + 10;
-                int tx = left + 14;
-                TextRenderer.DrawText(g, $"● IN ESECUZIONE (PID: {_app.RunningPid})", MonoSmallFont, new Point(tx, ty), Color.FromArgb(70, 220, 100));
+                int tx = left + 18;
+                TextRenderer.DrawText(g, $"IN ESECUZIONE · PID {_app.RunningPid}", MonoSmallFont, new Point(tx, ty), _theme.StatusGreen);
 
                 string stats = $"RAM: {telem.Value.RamMb} MB   |   Uptime: {telem.Value.Uptime.Hours:D2}:{telem.Value.Uptime.Minutes:D2}:{telem.Value.Uptime.Seconds:D2}   |   Thread: {telem.Value.ThreadCount}";
                 TextRenderer.DrawText(g, stats, BodyFont, new Point(tx, ty + 20), _theme.TextPrimary);
 
-                y += 70;
+                y += 76;
             }
         }
 
         // 1. Descrizione
         TextRenderer.DrawText(g, "Descrizione", H2Font, new Point(left, y), _theme.TextPrimary);
-        y += 24;
-        var descRect = new Rectangle(left, y, contentW, 40);
+        y += 28;
+        var descRect = new Rectangle(left, y, contentW, 44);
         TextRenderer.DrawText(g, _app.Description, BodyFont, descRect, _theme.TextSecondary, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
-        y += 46;
+        y += 52;
 
         // 2. Scheda Informazioni Tecniche (Card)
-        var infoCardRect = new RectangleF(left, y, contentW, 140);
+        var infoCardRect = new RectangleF(left, y, contentW, 148);
         using var cardPath = GraphicsHelper.RoundRect(infoCardRect, 6f);
         using (var b = new SolidBrush(_theme.CardBg)) g.FillPath(b, cardPath);
         using (var p = new Pen(_theme.Border)) g.DrawPath(p, cardPath);
 
-        int cy = y + 14;
-        int cx = left + 16;
+        int cy = y + 15;
+        int cx = left + 18;
         void Row(string label, string val, bool isMono = false)
         {
             TextRenderer.DrawText(g, label, BodyFont, new Point(cx, cy), _theme.TextMuted);
-            TextRenderer.DrawText(g, val, isMono ? MonoSmallFont : BodyFont, new Point(cx + 195, cy), _theme.TextPrimary, TextFormatFlags.NoPrefix | TextFormatFlags.PathEllipsis);
-            cy += 24;
+            TextRenderer.DrawText(g, val, isMono ? MonoSmallFont : BodyFont, new Point(cx + 205, cy), _theme.TextPrimary, TextFormatFlags.NoPrefix | TextFormatFlags.PathEllipsis);
+            cy += 25;
         }
 
         string rawBinPath = _app.InstalledExePath ?? _app.DistExePath ?? "Non compilato";
@@ -299,12 +310,12 @@ public sealed class AppDetailView : Panel
         Row("Dimensione su disco:", $"{_app.EstimatedSizeMb:0.#} MB");
         Row("Ultimo aggiornamento:", $" {_app.LastUpdatedText.Trim()}");
         Row("Integrità binario:", !string.IsNullOrEmpty(_app.Sha256Short) ? $"SHA-256: {_app.Sha256Short}" : "Verifica integrità disponibile", true);
-        y += 156;
+        y += 164;
 
         // 3. Esito Analisi Statica (se presente nei metadati dell'app)
         if (_app.Analysis != null && _app.Analysis.Rows.Count > 0)
         {
-            y += 28;
+            y += 30;
             TextRenderer.DrawText(g, _app.Analysis.Title, H2Font, new Point(left, y), _theme.TextPrimary);
             y += 28;
 
@@ -322,7 +333,118 @@ public sealed class AppDetailView : Panel
                 TextRenderer.DrawText(g, row.Value, BodyFont, new Point(ax + 195, ay), _theme.TextSecondary);
                 ay += 22;
             }
+
+            y += boxH;
         }
+
+        if (_app.UsageGuide is { } usageGuide)
+        {
+            y += 30;
+            DrawUsageGuide(g, usageGuide, left, contentW, ref y);
+        }
+
+        _body.AutoScrollMinSize = new Size(0, Math.Max(_body.ClientSize.Height, y + 28));
+    }
+
+    void DrawUsageGuide(Graphics g, UsageGuide guide, int left, int contentWidth, ref int y)
+    {
+        TextRenderer.DrawText(g, guide.Title, H2Font, new Point(left, y), _theme.TextPrimary);
+        y += 28;
+
+        int innerWidth = Math.Max(1, contentWidth - 32);
+        int codeWidth = Math.Max(1, innerWidth - 16);
+        int introHeight = MeasureWrappedText(g, guide.Introduction, BodyFont, innerWidth);
+        var measuredExamples = guide.Examples.Select(example => new
+        {
+            Example = example,
+            CommandHeight = MeasureWrappedText(g, example.Command, MonoSmallFont, codeWidth),
+            DescriptionHeight = MeasureWrappedText(g, example.Description, BodyFont, innerWidth)
+        }).ToArray();
+        var measuredNotes = guide.Notes
+            .Select(note => (Text: note, Height: MeasureWrappedText(g, "• " + note, BodyFont, innerWidth)))
+            .ToArray();
+
+        int cardHeight = 16;
+        if (introHeight > 0) cardHeight += introHeight + 14;
+        foreach (var item in measuredExamples)
+        {
+            cardHeight += 22;
+            if (item.CommandHeight > 0) cardHeight += item.CommandHeight + 18;
+            if (item.DescriptionHeight > 0) cardHeight += item.DescriptionHeight + 10;
+            cardHeight += 10;
+        }
+        if (measuredNotes.Length > 0)
+        {
+            cardHeight += 18;
+            foreach (var note in measuredNotes) cardHeight += note.Height + 7;
+        }
+        cardHeight += 12;
+
+        var cardRect = new RectangleF(left, y, contentWidth, cardHeight);
+        using var cardPath = GraphicsHelper.RoundRect(cardRect, 6f);
+        using (var brush = new SolidBrush(_theme.CardBg)) g.FillPath(brush, cardPath);
+        using (var pen = new Pen(_theme.Border)) g.DrawPath(pen, cardPath);
+
+        int innerX = left + 16;
+        int drawY = y + 14;
+        if (introHeight > 0)
+        {
+            TextRenderer.DrawText(g, guide.Introduction, BodyFont,
+                new Rectangle(innerX, drawY, innerWidth, introHeight), _theme.TextSecondary,
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+            drawY += introHeight + 14;
+        }
+
+        foreach (var item in measuredExamples)
+        {
+            TextRenderer.DrawText(g, item.Example.Title, BodyFont, new Point(innerX, drawY), _theme.BrandBlue);
+            drawY += 22;
+
+            if (item.CommandHeight > 0)
+            {
+                var codeRect = new Rectangle(innerX, drawY, innerWidth, item.CommandHeight + 8);
+                using var codePath = GraphicsHelper.RoundRect(codeRect, 4f);
+                using (var brush = new SolidBrush(_theme.Bg)) g.FillPath(brush, codePath);
+                using (var pen = new Pen(_theme.Border)) g.DrawPath(pen, codePath);
+                TextRenderer.DrawText(g, item.Example.Command, MonoSmallFont,
+                    new Rectangle(codeRect.X + 8, codeRect.Y + 4, codeWidth, item.CommandHeight), _theme.TextPrimary,
+                    TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                drawY += item.CommandHeight + 18;
+            }
+
+            if (item.DescriptionHeight > 0)
+            {
+                TextRenderer.DrawText(g, item.Example.Description, BodyFont,
+                    new Rectangle(innerX, drawY, innerWidth, item.DescriptionHeight), _theme.TextSecondary,
+                    TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                drawY += item.DescriptionHeight + 10;
+            }
+
+            drawY += 10;
+        }
+
+        if (measuredNotes.Length > 0)
+        {
+            using var separator = new Pen(_theme.Border);
+            g.DrawLine(separator, innerX, drawY, innerX + innerWidth, drawY);
+            drawY += 12;
+            foreach (var note in measuredNotes)
+            {
+                TextRenderer.DrawText(g, "• " + note.Text, BodyFont,
+                    new Rectangle(innerX, drawY, innerWidth, note.Height), _theme.TextSecondary,
+                    TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                drawY += note.Height + 7;
+            }
+        }
+
+        y += cardHeight;
+    }
+
+    static int MeasureWrappedText(Graphics g, string text, Font font, int width)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return 0;
+        return TextRenderer.MeasureText(g, text, font, new Size(Math.Max(1, width), int.MaxValue),
+            TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height;
     }
 
     void OnActionsBarPaint(object? sender, PaintEventArgs e)

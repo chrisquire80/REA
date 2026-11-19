@@ -158,7 +158,7 @@ public static class NoreaBridge
     public static List<Dictionary<string, object>> GetAppsStatus(bool runningOnly = false)
     {
         var result = new List<Dictionary<string, object>>();
-        string[] appIds = ["NotepadREA", "NoreaLauncher"];
+        string[] appIds = ["NotepadREA", "WinSCPREA", "NoreaLauncher"];
 
         foreach (var id in appIds)
         {

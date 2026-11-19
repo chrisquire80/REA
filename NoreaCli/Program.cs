@@ -49,6 +49,9 @@ static class Program
                 case "status":
                     return HandleStatus();
 
+                case "winscp":
+                    return await WinScpAgentCli.RunAsync(args[1..]);
+
                 default:
                     // Se l'argomento è un file esistente, aprilo direttamente in NotepadREA
                     if (File.Exists(args[0]))
@@ -248,7 +251,7 @@ static class Program
 
     static void PrintUsage()
     {
-        Console.WriteLine(@"NOREA Suite CLI & AI Agent Bridge (v2.2.0)
+        Console.WriteLine(@"NOREA Suite CLI & AI Agent Bridge (v2.3.0)
 Uso: norea <comando> [argomenti...]
 
 Comandi Editor:
@@ -259,8 +262,11 @@ Comandi Editor:
 Comandi Suite & Notifiche:
   notify <app> [msg] [--old v] [--new v]  Mostra la notifica desktop toast flyout
   list [--json] [--running]                Elenca le applicazioni NOREA e i processi attivi
-  launch <appId>                           Avvia un'applicazione (es. NotepadREA)
+  launch <appId>                           Avvia un'applicazione (es. NotepadREA, WinSCPREA)
   status                                   Stato generale della suite
+
+Gestione SFTP agent-native:
+  winscp <comando> [--json]               Siti, elenco remoto e trasferimenti SFTP
 
 Integrazione AI (Claude Code & Antigravity):
   mcp                                      Avvia il server MCP JSON-RPC 2.0 su stdio
