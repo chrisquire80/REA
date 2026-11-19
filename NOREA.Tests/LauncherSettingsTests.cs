@@ -92,15 +92,25 @@ public class LauncherSettingsTests
             Directory.CreateDirectory(testsDir);
             File.WriteAllText(Path.Combine(testsDir, "NOREA.Tests.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>1.0.0</Version></PropertyGroup></Project>");
 
+            string coreDir = Path.Combine(root, "WinSCPREA.Core");
+            Directory.CreateDirectory(coreDir);
+            File.WriteAllText(Path.Combine(coreDir, "WinSCPREA.Core.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>1.0.0</Version></PropertyGroup></Project>");
+
+            string libDir = Path.Combine(root, "SharedHelpers");
+            Directory.CreateDirectory(libDir);
+            File.WriteAllText(Path.Combine(libDir, "SharedHelpers.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>1.0.0</Version></PropertyGroup></Project>");
+
             string appDir = Path.Combine(root, "NotepadREA");
             Directory.CreateDirectory(appDir);
-            File.WriteAllText(Path.Combine(appDir, "NotepadREA.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><Version>2.2.0</Version></PropertyGroup></Project>");
+            File.WriteAllText(Path.Combine(appDir, "NotepadREA.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>WinExe</OutputType><Version>2.2.0</Version></PropertyGroup></Project>");
 
             var settings = new LauncherSettings { WorkspaceDir = root };
             var apps = CatalogService.LoadApps(settings);
 
             Assert.DoesNotContain(apps, a => a.Id.Contains("Benchmark", StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(apps, a => a.Id.Contains("Test", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(apps, a => a.Id.Contains(".Core", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(apps, a => string.Equals(a.Id, "SharedHelpers", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(apps, a => string.Equals(a.Id, "NotepadREA", StringComparison.OrdinalIgnoreCase));
         }
         finally

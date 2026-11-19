@@ -343,9 +343,22 @@ public static class CatalogService
     {
         if (string.IsNullOrWhiteSpace(name)) return true;
         string lower = name.Trim().ToLowerInvariant();
-        return lower is "norea" or "noreacli" or "norea-cli" or "norealauncher" or "noreamcp"
+        return lower is "norea" or "noreacli" or "norea-cli" or "norealauncher" or "noreamcp" or "noreadesign"
             || lower.EndsWith("tests") || lower.EndsWith(".tests")
+            || lower.EndsWith(".core")
             || lower.Contains("benchmark") || lower.Contains("benchmarks");
+    }
+
+    static bool IsExecutableProject(string csprojPath)
+    {
+        try
+        {
+            var doc = System.Xml.Linq.XDocument.Load(csprojPath);
+            var outType = doc.Descendants("OutputType").FirstOrDefault()?.Value?.Trim();
+            return string.Equals(outType, "WinExe", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(outType, "Exe", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
     }
 
     static void DiscoverWorkspaceProjects(string ws, List<AppEntry> list, LauncherSettings settings)
@@ -361,6 +374,7 @@ public static class CatalogService
 
                 var id = Path.GetFileNameWithoutExtension(csproj);
                 if (IsExcludedSuiteComponent(id)) continue;
+                if (!IsExecutableProject(csproj)) continue;
 
                 var existing = list.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
                 if (existing is null)

@@ -242,7 +242,6 @@ public sealed class AppDetailView : Panel
     {
         var g = e.Graphics;
         g.Clear(_theme.Bg);
-        g.TranslateTransform(_body.AutoScrollPosition.X, _body.AutoScrollPosition.Y);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
@@ -253,8 +252,10 @@ public sealed class AppDetailView : Panel
             return;
         }
 
-        int y = 24;
-        int left = 28;
+        int scrollX = _body.AutoScrollPosition.X;
+        int scrollY = _body.AutoScrollPosition.Y;
+        int y = 24 + scrollY;
+        int left = 28 + scrollX;
         int contentW = Math.Max(1, _body.ClientSize.Width - 56);
 
         // Telemetria Live se in esecuzione
@@ -343,7 +344,10 @@ public sealed class AppDetailView : Panel
             DrawUsageGuide(g, usageGuide, left, contentW, ref y);
         }
 
-        _body.AutoScrollMinSize = new Size(0, Math.Max(_body.ClientSize.Height, y + 28));
+        int totalHeight = (y - scrollY) + 28;
+        var desiredScrollSize = new Size(0, Math.Max(_body.ClientSize.Height, totalHeight));
+        if (_body.AutoScrollMinSize != desiredScrollSize)
+            _body.AutoScrollMinSize = desiredScrollSize;
     }
 
     void DrawUsageGuide(Graphics g, UsageGuide guide, int left, int contentWidth, ref int y)
