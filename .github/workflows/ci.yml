@@ -21,11 +21,69 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Restore
         run: dotnet restore NOREA.slnx
 
       - name: Build
         run: dotnet build NOREA.slnx -c Release --no-restore
 
-      - name: Test
-        run: dotnet test NOREA.Tests/NOREA.Tests.csproj -c Release --no-build --verbosity normal
+      - name: Test with coverage
+        shell: pwsh
+        run: dotnet test NOREA.Tests/NOREA.Tests.csproj -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory coverage
+
+      - name: Summarize coverage
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem -Path coverage -Filter coverage.cobertura.xml -Recurse | Select-Object -First 1
+          if (-not $file) { throw "Report di copertura non trovato." }
+          [xml]$report = Get-Content -LiteralPath $file.FullName
+          $lineRate = [double]$report.DocumentElement.GetAttribute("line-rate")
+          $branchRate = [double]$report.DocumentElement.GetAttribute("branch-rate")
+          $summary = "Copertura linee: $([math]::Round($lineRate * 100, 1))% · rami: $([math]::Round($branchRate * 100, 1))%"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+          Write-Host $summary
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/**/coverage.cobertura.xml
+          if-no-files-found: error
+
+      - name: Test WinSCPREA agent harness
+        working-directory: WinSCPREA/agent-harness
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+          python -m pytest -q
+
+      - name: Packaging check
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          ./crea_pacchetto_portatile.ps1
+          $zipPath = Join-Path (Get-Location) "NOREA_Suite_Portable.zip"
+          if (-not (Test-Path -LiteralPath $zipPath)) { throw "Pacchetto portatile non creato." }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+          try {
+            $names = @($archive.Entries | ForEach-Object { $_.Name })
+            foreach ($required in @(
+                "NotepadREA.exe",
+                "NoreaLauncher.exe",
+                "WinSCPREA.exe",
+                "EverythingREA.exe",
+                "norea.exe",
+                "installa_associazioni.ps1",
+                "LICENSE")) {
+              if ($names -notcontains $required) { throw "Manca $required nel pacchetto portatile." }
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }

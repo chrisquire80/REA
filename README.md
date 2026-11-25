@@ -129,6 +129,8 @@ dotnet publish NoreaCli\NoreaCli.csproj -c Release -r win-x64 --self-contained f
 .\installa_associazioni.ps1
 ```
 
+La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 64 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
+
 ### Benchmark I/O file grandi
 
 Il benchmark misura separatamente hash su buffer/file, lettura+decodifica e codifica+scrittura. Riporta la mediana dei tempi e le allocazioni gestite per operazione; non è un test di regressione prestazionale e i risultati dipendono da disco, runtime e dimensione della cache.
