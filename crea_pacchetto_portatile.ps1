@@ -34,6 +34,7 @@ Set-Content -Path "$outDir\norea.cmd" -Value "@echo off`r`n`"%~dp0norea.exe`" %*
 Write-Host "[2/3] Copia script di utilità e documentazione..." -ForegroundColor Yellow
 Copy-Item "$root\installa_associazioni.ps1" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
 Copy-Item "$root\rimuovi_associazioni.ps1" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
+Copy-Item "$root\LICENSE" -Destination "$outDir\" -Force
 Copy-Item "$root\THIRD_PARTY_NOTICES.md" -Destination "$outDir\" -Force
 Copy-Item "$root\ANALISI_WINSCP_REA.md" -Destination "$outDir\" -Force
 Copy-Item "$root\ANALISI_EVERYTHING_REA.md" -Destination "$outDir\" -Force
