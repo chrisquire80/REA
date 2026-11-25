@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Versione unica della suite, allineata al tag di release.
+    Un progetto può sovrascriverla con un proprio elemento Version
+    (WinSCPREA 1.0.2, EverythingREA 1.0.0 e le librerie Core).
+  -->
+  <PropertyGroup>
+    <NoreaSuiteVersion>2.5.0</NoreaSuiteVersion>
+    <Version>$(NoreaSuiteVersion)</Version>
+    <Company>Christian Robecchi</Company>
+    <Copyright>Copyright (c) 2026 Christian Robecchi</Copyright>
+    <Authors>Christian Robecchi</Authors>
+  </PropertyGroup>
+</Project>

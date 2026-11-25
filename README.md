@@ -21,7 +21,7 @@
 
 ## 📦 Progetti della Suite
 
-### 1. [NotepadREA](NotepadREA/NotepadREA.csproj) (v2.1.0)
+### 1. [NotepadREA](NotepadREA/NotepadREA.csproj) (v2.5.0)
 Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'analisi statica e dinamica di Notepad++ 8.9.8.1 (PE32+ AMD64).
 * **Terminale PowerShell/CMD Incorporato (`F12` / `Ctrl+~`)**: Console interattiva integrata in un cassetto a scomparsa, aperta automaticamente nella cartella del documento corrente per compilare o eseguire script.
 * **Confronto File Side-by-Side (`Ctrl+Alt+D`)**: Interfaccia a doppio editor Scintilla con scorrimento verticale sincronizzato, evidenziazione a riga intera (aggiunte, rimosse, modificate) e navigazione con `F7` e `Shift+F7`.
@@ -33,7 +33,7 @@ Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'a
 * **Find & Replace in Files**: Finestra multi-thread parallelizzata (`Ctrl+Shift+F`) con supporto a sottocartelle, regex e navigazione rapida.
 * **Librerie Native Incorporate (Self-Healing)**: `Scintilla.dll` e `Lexilla.dll` sono incorporate direttamente nell'eseguibile ed auto-estratte al primo avvio se mancanti su disco, rendendo l'eseguibile autonomo al 100%.
 
-### 2. [NoreaLauncher](NoreaLauncher/NoreaLauncher.csproj) (v2.2.2)
+### 2. [NoreaLauncher](NoreaLauncher/NoreaLauncher.csproj) (v2.5.0)
 Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro e componenti condivisi.
 * **Layout Master-Detail**: Ricerca rapida, elenco applicazioni, stato e azioni principali coerenti con il sistema di design NOREA.
 * **Sistema di design riutilizzabile**: Token colore, tipografia, spaziatura e controlli per i prossimi programmi NOREA in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
@@ -50,7 +50,7 @@ Client SFTP e file manager Windows a due pannelli, ricostruito da zero in C# / W
 * Harness Python Click basato su [CLI-Anything](WinSCPREA/agent-harness/cli_anything/winscprea/README.md): `winscprea --json site list`, REPL interattiva e comandi per elenco, trasferimento e gestione remota. La logica SFTP resta condivisa con l'app tramite `NoreaCli` e SSH.NET.
 * Perimetro iniziale limitato a SFTP. Analisi e limiti: [ANALISI_WINSCP_REA.md](ANALISI_WINSCP_REA.md).
 
-### 4. [NoreaCli & MCP Server](NoreaCli/NoreaCli.csproj) (v2.3.0)
+### 4. [NoreaCli & MCP Server](NoreaCli/NoreaCli.csproj) (v2.5.0)
 Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)** conforme alle specifiche 2024-11-05 per collegare la suite ad agenti AI come **Claude Code** e **Google Antigravity**:
 * **Comandi CLI nativi**:
   ```powershell

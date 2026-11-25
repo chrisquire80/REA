@@ -249,9 +249,11 @@ static class Program
         return 0;
     }
 
+    static string CliVersion => typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "2.5.0";
+
     static void PrintUsage()
     {
-        Console.WriteLine(@"NOREA Suite CLI & AI Agent Bridge (v2.3.0)
+        Console.WriteLine($@"NOREA Suite CLI & AI Agent Bridge (v{CliVersion})
 Uso: norea <comando> [argomenti...]
 
 Comandi Editor:

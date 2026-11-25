@@ -51,7 +51,7 @@ public sealed class MainForm : Form
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int sz);
 
-    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.2");
+    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.5.0");
 
     public MainForm()
     {
@@ -698,7 +698,7 @@ public sealed class MainForm : Form
             _infoBar.ShowMessage("Verifica disponibilità aggiornamenti su GitHub...", InfoBarControl.BarType.Info, _theme);
         }
 
-        string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.2.2");
+        string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.5.0");
         var release = await CloudUpdateService.CheckForUpdatesAsync(_settings.GitHubRepo, currentVer, _settings.IncludePreReleases);
 
         if (release != null && release.IsUpdateAvailable)

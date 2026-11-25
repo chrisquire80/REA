@@ -6,6 +6,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Versione di prodotto: sovrascrive NoreaSuiteVersion. -->
     <Version>1.0.0</Version>
     <Product>EverythingREA</Product>
     <AssemblyName>EverythingREA</AssemblyName>

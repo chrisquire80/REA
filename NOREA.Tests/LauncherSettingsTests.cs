@@ -118,4 +118,52 @@ public class LauncherSettingsTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void Catalog_Load_UsesDirectoryBuildPropsWhenCsprojHasNoVersion()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"norea-suite-version-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "Directory.Build.props"), """
+                <Project>
+                  <PropertyGroup>
+                    <NoreaSuiteVersion>9.8.7</NoreaSuiteVersion>
+                    <Version>$(NoreaSuiteVersion)</Version>
+                  </PropertyGroup>
+                </Project>
+                """);
+
+            string suiteDir = Path.Combine(root, "SampleREA");
+            Directory.CreateDirectory(suiteDir);
+            File.WriteAllText(Path.Combine(suiteDir, "SampleREA.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <OutputType>WinExe</OutputType>
+                  </PropertyGroup>
+                </Project>
+                """);
+
+            string productDir = Path.Combine(root, "WidgetREA");
+            Directory.CreateDirectory(productDir);
+            File.WriteAllText(Path.Combine(productDir, "WidgetREA.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <OutputType>WinExe</OutputType>
+                    <Version>1.2.3</Version>
+                  </PropertyGroup>
+                </Project>
+                """);
+
+            var apps = CatalogService.LoadApps(new LauncherSettings { WorkspaceDir = root });
+
+            Assert.Equal("v9.8.7", Assert.Single(apps, a => a.Id == "SampleREA").Version);
+            Assert.Equal("v1.2.3", Assert.Single(apps, a => a.Id == "WidgetREA").Version);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }

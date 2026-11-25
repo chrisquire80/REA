@@ -41,7 +41,7 @@ public sealed class AppEntry
     public string Prefix { get; set; } = "";
     public string Suffix { get; set; } = "REA";
     public string AuthorBadge { get; set; } = "BY NOREA";
-    public string Version { get; set; } = "v2.2.0";
+    public string Version { get; set; } = "v2.5.0";
     public string Runtime { get; set; } = "Scintilla/Lexilla · .NET 10";
     public string Tagline { get; set; } = "";
     public string Description { get; set; } = "";
@@ -541,12 +541,41 @@ public static class CatalogService
     {
         try
         {
-            var doc = XDocument.Load(csprojPath);
-            var v = doc.Descendants("Version").FirstOrDefault()?.Value;
-            return string.IsNullOrWhiteSpace(v) ? null : "v" + v.TrimStart('v', 'V');
+            var direct = ReadConcreteVersion(XDocument.Load(csprojPath));
+            if (direct != null) return direct;
+
+            var dir = Path.GetDirectoryName(Path.GetFullPath(csprojPath));
+            while (!string.IsNullOrEmpty(dir))
+            {
+                var propsPath = Path.Combine(dir, "Directory.Build.props");
+                if (File.Exists(propsPath))
+                {
+                    var props = XDocument.Load(propsPath);
+                    var suite = props.Descendants("NoreaSuiteVersion").FirstOrDefault()?.Value;
+                    if (IsConcreteVersion(suite))
+                        return "v" + suite!.Trim().TrimStart('v', 'V');
+                    return ReadConcreteVersion(props);
+                }
+
+                var parent = Directory.GetParent(dir)?.FullName;
+                if (string.IsNullOrEmpty(parent) || string.Equals(parent, dir, StringComparison.OrdinalIgnoreCase))
+                    break;
+                dir = parent;
+            }
         }
-        catch { return null; }
+        catch { }
+        return null;
     }
+
+    static string? ReadConcreteVersion(XDocument doc)
+    {
+        var value = doc.Descendants("Version").FirstOrDefault()?.Value;
+        if (!IsConcreteVersion(value)) return null;
+        return "v" + value!.Trim().TrimStart('v', 'V');
+    }
+
+    static bool IsConcreteVersion(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && !value.Contains("$(");
 
     static string GuessIconType(string id) =>
         id.Contains("note", StringComparison.OrdinalIgnoreCase) ? "notepad" :
@@ -558,7 +587,7 @@ public static class CatalogService
     [
         new()
         {
-            Id = "NotepadREA", Prefix = "Notepad", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v2.2.0",
+            Id = "NotepadREA", Prefix = "Notepad", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v2.5.0",
             Runtime = "Scintilla/Lexilla · .NET 10",
             Tagline = "Editor di testo e codice Scintilla/Lexilla",
             Description = "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",
@@ -611,6 +640,24 @@ public static class CatalogService
                     "Nelle sessioni interattive la password viene richiesta senza mostrarla; gli script possono usare WINSCPREA_PASSWORD. Per chiavi cifrate imposta WINSCPREA_KEY_PASSPHRASE.",
                     "Alla prima connessione verifica l'impronta SHA-256 con il gestore del server, poi ripeti con --trust-host-key e l'impronta esatta.",
                     "Rinomina ed eliminazione remota richiedono --yes; usa --dry-run per controllare una modifica prima di eseguirla."
+                ]
+            }
+        },
+        new()
+        {
+            Id = "EverythingREA", Prefix = "Everything", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v1.0.0",
+            Runtime = "Indicizzazione parallela · .NET 10",
+            Tagline = "Motore di ricerca istantanea file e cartelle",
+            Description = "Ricostruzione nativa da zero basata sull'analisi statica di Everything 1.4.1.1032.",
+            IconType = "search", AccentHex = "#6DA9FF", ProjectPath = "EverythingREA", BinaryPath = @"dist\EverythingREA.exe",
+            AnalysisPath = "ANALISI_EVERYTHING_REA.md", EstimatedSizeMb = 1.2, LastUpdatedText = "25 nov 2026", IsPlanned = false,
+            Analysis = new AnalysisSection
+            {
+                Title = "Esito analisi statica (Everything 1.4.1.1032 x64)",
+                Rows =
+                [
+                    new AnalysisRow { Label = "Target analizzato:", Value = "Everything.exe (PE32+, AMD64, 2,27 MB, Authenticode voidtools PTY LTD)" },
+                    new AnalysisRow { Label = "Ricostruzione NOREA:", Value = "C# .NET 10 WinForms con indicizzazione parallela e cache locale" }
                 ]
             }
         }
