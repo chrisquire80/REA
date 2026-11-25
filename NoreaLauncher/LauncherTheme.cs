@@ -263,6 +263,17 @@ public static class GraphicsHelper
                 ]);
                 break;
 
+            case "search":
+                using (var lensPen = new Pen(Color.FromArgb(245, 248, 250, 252), 2.5f * u))
+                    g.DrawEllipse(lensPen, ox + 7f * u, oy + 7f * u, 13f * u, 13f * u);
+                using (var handlePen = new Pen(Color.FromArgb(255, 242, 120, 103), 2.8f * u))
+                {
+                    handlePen.StartCap = LineCap.Round;
+                    handlePen.EndCap = LineCap.Round;
+                    g.DrawLine(handlePen, ox + 18.2f * u, oy + 18.2f * u, ox + 24.5f * u, oy + 24.5f * u);
+                }
+                break;
+
             default:
                 using (var f = new Font("Segoe UI", 11f * u, FontStyle.Bold, GraphicsUnit.Pixel))
                 {

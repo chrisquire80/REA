@@ -19,12 +19,14 @@ if ($SelfContained) {
     dotnet publish "$root\NoreaLauncher\NoreaLauncher.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaCli\NoreaCli.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
     dotnet publish "$root\WinSCPREA\WinSCPREA.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
+    dotnet publish "$root\EverythingREA\EverythingREA.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=false -p:DebugType=none -o "$outDir"
 } else {
     Write-Host "[1/3] Compilazione Portatile ad alte prestazioni..." -ForegroundColor Yellow
     dotnet publish "$root\NotepadREA\NotepadREA.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaLauncher\NoreaLauncher.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
     dotnet publish "$root\NoreaCli\NoreaCli.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
     dotnet publish "$root\WinSCPREA\WinSCPREA.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
+    dotnet publish "$root\EverythingREA\EverythingREA.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o "$outDir"
 }
 if (Test-Path "$outDir\NoreaCli.exe") { Copy-Item "$outDir\NoreaCli.exe" "$outDir\norea.exe" -Force }
 Set-Content -Path "$outDir\norea.cmd" -Value "@echo off`r`n`"%~dp0norea.exe`" %*" -Encoding ASCII
@@ -34,6 +36,7 @@ Copy-Item "$root\installa_associazioni.ps1" -Destination "$outDir\" -Force -Erro
 Copy-Item "$root\rimuovi_associazioni.ps1" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
 Copy-Item "$root\THIRD_PARTY_NOTICES.md" -Destination "$outDir\" -Force
 Copy-Item "$root\ANALISI_WINSCP_REA.md" -Destination "$outDir\" -Force
+Copy-Item "$root\ANALISI_EVERYTHING_REA.md" -Destination "$outDir\" -Force
 
 $readmeContent = @"
 ==================================================

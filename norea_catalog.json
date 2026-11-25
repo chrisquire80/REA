@@ -90,5 +90,57 @@
         "Rinomina ed eliminazione remota richiedono --yes; usa --dry-run per controllare una modifica prima di eseguirla."
       ]
     }
+  },
+  {
+    "Id": "EverythingREA",
+    "Prefix": "Everything",
+    "Suffix": "REA",
+    "AuthorBadge": "BY NOREA",
+    "Version": "v1.0.0",
+    "Runtime": "Indicizzazione parallela · .NET 10",
+    "Tagline": "Motore di ricerca istantanea file e cartelle",
+    "Description": "Ricostruzione nativa da zero basata sull'analisi statica di Everything 1.4.1.1032. Indicizza dischi e cartelle locali con ricerca istantanea, filtri booleani, wildcard, regex e apertura diretta in NotepadREA.",
+    "IconType": "search",
+    "AccentHex": "#6DA9FF",
+    "ProjectPath": "EverythingREA",
+    "BinaryPath": "dist\\EverythingREA.exe",
+    "AnalysisPath": "ANALISI_EVERYTHING_REA.md",
+    "EstimatedSizeMb": 1.2,
+    "LastUpdatedText": "25 nov 2026",
+    "IsPlanned": false,
+    "Analysis": {
+      "Title": "Esito analisi statica (Everything 1.4.1.1032 x64)",
+      "Rows": [
+        { "Label": "Target analizzato:", "Value": "Everything.exe (PE32+, AMD64, 2,27 MB, Authenticode voidtools PTY LTD)" },
+        { "Label": "Hardening PE:", "Value": "ASLR attivo, DEP/NX attivo, 6 sezioni Windows GUI" },
+        { "Label": "Ricostruzione NOREA:", "Value": "C# .NET 10 WinForms con indicizzazione parallela e cache locale" },
+        { "Label": "Funzioni integrate:", "Value": "Search-as-you-type, wildcard/regex, filtri ext:/size:>, apertura in NotepadREA" }
+      ]
+    },
+    "UsageGuide": {
+      "Title": "Guida rapida · Sintassi di ricerca",
+      "Introduction": "EverythingREA filtra l'indice locale in tempo reale ad ogni carattere digitato. Puoi combinare parole chiave, operatori booleani e filtri rapidi.",
+      "Examples": [
+        {
+          "Title": "Operatori AND, OR e negazione",
+          "Command": "fattura 2026 | preventivo !bozza",
+          "Description": "Lo spazio equivale ad AND, | equivale a OR e ! esclude i risultati che contengono il termine."
+        },
+        {
+          "Title": "Wildcard ed estensioni",
+          "Command": "*.cs ext:json;md !obj !bin",
+          "Description": "Cerca file per pattern (* e ?) o estensioni multiple separate da punto e virgola."
+        },
+        {
+          "Title": "Filtri per tipo e dimensione",
+          "Command": "folder: report   |   file: size:>5mb",
+          "Description": "Limita la ricerca a sole cartelle (folder:) o file (file:) oltre una soglia (KB, MB, GB)."
+        }
+      ],
+      "Notes": [
+        "Premi F5 per forzare la reindicizzazione completa delle cartelle configurate.",
+        "Fai clic destro su qualsiasi file nei risultati per aprirlo direttamente in NotepadREA o copiarne il percorso (Ctrl+Shift+C)."
+      ]
+    }
   }
 ]

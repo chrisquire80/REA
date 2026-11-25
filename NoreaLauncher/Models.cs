@@ -549,7 +549,10 @@ public static class CatalogService
     }
 
     static string GuessIconType(string id) =>
-        id.Contains("note", StringComparison.OrdinalIgnoreCase) ? "notepad" : "app";
+        id.Contains("note", StringComparison.OrdinalIgnoreCase) ? "notepad" :
+        id.Contains("winscp", StringComparison.OrdinalIgnoreCase) || id.Contains("transfer", StringComparison.OrdinalIgnoreCase) ? "transfer" :
+        id.Contains("everything", StringComparison.OrdinalIgnoreCase) || id.Contains("search", StringComparison.OrdinalIgnoreCase) ? "search" :
+        "app";
 
     static List<AppEntry> GetDefaultCatalog() =>
     [
