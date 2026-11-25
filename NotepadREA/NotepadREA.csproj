@@ -15,6 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
     <PackageReference Include="Scintilla5.NET" Version="7.1.1" GeneratePathProperty="true" />
   </ItemGroup>
 

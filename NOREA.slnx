@@ -4,6 +4,7 @@
   <Project Path="NoreaCli/NoreaCli.csproj" />
   <Project Path="WinSCPREA.Core/WinSCPREA.Core.csproj" />
   <Project Path="EverythingREA.Core/EverythingREA.Core.csproj" />
+  <Project Path="NoreaDesign/NoreaDesign.csproj" />
   <Project Path="NoreaLauncher/NoreaLauncher.csproj" />
   <Project Path="NotepadREA/NotepadREA.csproj" />
   <Project Path="WinSCPREA/WinSCPREA.csproj" />

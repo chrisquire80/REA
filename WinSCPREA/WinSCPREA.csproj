@@ -16,7 +16,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\WinSCPREA.Core\WinSCPREA.Core.csproj" />
-    <Compile Include="..\NoreaDesign\NoreaDesign.cs" Link="NoreaDesign\NoreaDesign.cs" />
+    <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
     <None Include="..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

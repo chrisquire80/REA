@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
-using System.Runtime.InteropServices;
+using NoreaDesign;
 
 namespace NotepadREA;
 
@@ -53,16 +53,7 @@ public sealed record Theme(
 
     public static Theme ByName(string? name) => All.FirstOrDefault(t => t.Name == name) ?? Light;
 
-    // ---------- Barra del titolo scura (DWMWA_USE_IMMERSIVE_DARK_MODE) ----------
-    [DllImport("dwmapi.dll")]
-    static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
-
-    public void ApplyTitleBar(Form f)
-    {
-        if (!f.IsHandleCreated) return;
-        int v = IsDark ? 1 : 0;
-        DwmSetWindowAttribute(f.Handle, 20, ref v, sizeof(int));
-    }
+    public void ApplyTitleBar(Form f) => NoreaStyles.ApplyTitleBar(f, IsDark);
 
     /// <summary>Colora ricorsivamente controlli standard (TextBox, Button, Label...).</summary>
     public void Paint(Control root)

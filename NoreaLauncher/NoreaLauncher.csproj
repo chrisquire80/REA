@@ -15,7 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\NoreaDesign\NoreaDesign.cs" Link="NoreaDesign\NoreaDesign.cs" />
+    <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,78 +4,51 @@ using NoreaDesign;
 
 namespace NoreaLauncher;
 
-public sealed record LauncherTheme(
-    string Name,
-    bool IsDark,
-    Color Bg,
-    Color HeaderBg,
-    Color PanelBg,
-    Color CardBg,
-    Color CardHoverBg,
-    Color CardSelectedBg,
-    Color InputBg,
-    Color Border,
-    Color BorderStrong,
-    Color TextPrimary,
-    Color TextSecondary,
-    Color TextMuted,
-    Color BrandRed,
-    Color BrandBlue,
-    Color BadgeBg,
-    Color BadgeFg,
-    Color VersionStableBg,
-    Color VersionStableFg,
-    Color VersionCanaryBg,
-    Color VersionCanaryFg,
-    Color StatusGreen,
-    Color StatusAmber,
-    Color StatusCoral,
-    Color PrimaryBtnBg,
-    Color PrimaryBtnFg,
-    Color SecondaryBtnBg,
-    Color SecondaryBtnHoverBg,
-    Color SecondaryBtnFg)
+public sealed class LauncherTheme
 {
-    public static readonly LauncherTheme Dark = FromPalette(NoreaDesign.NoreaStyles.Dark);
-    public static readonly LauncherTheme Light = FromPalette(NoreaDesign.NoreaStyles.Light);
+    public NoreaPalette Palette { get; }
 
-    static LauncherTheme FromPalette(NoreaPalette palette) => new(
-        Name: palette.Name,
-        IsDark: palette.IsDark,
-        Bg: palette.Bg,
-        HeaderBg: palette.HeaderBg,
-        PanelBg: palette.PanelBg,
-        CardBg: palette.CardBg,
-        CardHoverBg: palette.CardHoverBg,
-        CardSelectedBg: palette.CardSelectedBg,
-        InputBg: palette.InputBg,
-        Border: palette.Border,
-        BorderStrong: palette.BorderStrong,
-        TextPrimary: palette.TextPrimary,
-        TextSecondary: palette.TextSecondary,
-        TextMuted: palette.TextMuted,
-        BrandRed: palette.BrandRed,
-        BrandBlue: palette.BrandBlue,
-        BadgeBg: palette.BadgeBg,
-        BadgeFg: palette.BadgeFg,
-        VersionStableBg: palette.VersionStableBg,
-        VersionStableFg: palette.VersionStableFg,
-        VersionCanaryBg: palette.VersionCanaryBg,
-        VersionCanaryFg: palette.VersionCanaryFg,
-        StatusGreen: palette.StatusGreen,
-        StatusAmber: palette.StatusAmber,
-        StatusCoral: palette.StatusCoral,
-        PrimaryBtnBg: palette.PrimaryBtnBg,
-        PrimaryBtnFg: palette.PrimaryBtnFg,
-        SecondaryBtnBg: palette.SecondaryBtnBg,
-        SecondaryBtnHoverBg: palette.SecondaryBtnHoverBg,
-        SecondaryBtnFg: palette.SecondaryBtnFg);
+    LauncherTheme(NoreaPalette palette) => Palette = palette;
+
+    public string Name => Palette.Name;
+    public bool IsDark => Palette.IsDark;
+    public Color Bg => Palette.Bg;
+    public Color HeaderBg => Palette.HeaderBg;
+    public Color PanelBg => Palette.PanelBg;
+    public Color CardBg => Palette.CardBg;
+    public Color CardHoverBg => Palette.CardHoverBg;
+    public Color CardSelectedBg => Palette.CardSelectedBg;
+    public Color InputBg => Palette.InputBg;
+    public Color Border => Palette.Border;
+    public Color BorderStrong => Palette.BorderStrong;
+    public Color TextPrimary => Palette.TextPrimary;
+    public Color TextSecondary => Palette.TextSecondary;
+    public Color TextMuted => Palette.TextMuted;
+    public Color BrandRed => Palette.BrandRed;
+    public Color BrandBlue => Palette.BrandBlue;
+    public Color BadgeBg => Palette.BadgeBg;
+    public Color BadgeFg => Palette.BadgeFg;
+    public Color VersionStableBg => Palette.VersionStableBg;
+    public Color VersionStableFg => Palette.VersionStableFg;
+    public Color VersionCanaryBg => Palette.VersionCanaryBg;
+    public Color VersionCanaryFg => Palette.VersionCanaryFg;
+    public Color StatusGreen => Palette.StatusGreen;
+    public Color StatusAmber => Palette.StatusAmber;
+    public Color StatusCoral => Palette.StatusCoral;
+    public Color PrimaryBtnBg => Palette.PrimaryBtnBg;
+    public Color PrimaryBtnFg => Palette.PrimaryBtnFg;
+    public Color SecondaryBtnBg => Palette.SecondaryBtnBg;
+    public Color SecondaryBtnHoverBg => Palette.SecondaryBtnHoverBg;
+    public Color SecondaryBtnFg => Palette.SecondaryBtnFg;
+
+    public static readonly LauncherTheme Dark = new(NoreaStyles.Dark);
+    public static readonly LauncherTheme Light = new(NoreaStyles.Light);
 
     public static LauncherTheme FromAppearance(string mode) => mode switch
     {
         "Light" => Light,
         "Dark" => Dark,
-        _ => NoreaDesign.NoreaStyles.CurrentPalette.IsDark ? Dark : Light,
+        _ => NoreaStyles.CurrentPalette.IsDark ? Dark : Light,
     };
 
     public static Color ParseHex(string? hex, Color fallback)
@@ -88,18 +61,8 @@ public sealed record LauncherTheme(
 
 public static class GraphicsHelper
 {
-    public static GraphicsPath RoundRect(RectangleF r, float radius)
-    {
-        var p = new GraphicsPath();
-        if (radius <= 0f || r.Width <= 0f || r.Height <= 0f) { p.AddRectangle(r); return p; }
-        float d = Math.Min(radius * 2f, Math.Min(r.Width, r.Height));
-        p.AddArc(r.X, r.Y, d, d, 180, 90);
-        p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-        p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-        p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-        p.CloseFigure();
-        return p;
-    }
+    public static GraphicsPath RoundRect(RectangleF r, float radius) =>
+        NoreaDesign.GraphicsHelper.RoundRect(r, radius);
 
     public static void DrawPill(Graphics g, string text, Font font, Point loc, Color bg, Color fg, Color? border = null, int padX = 8, int height = 18)
     {
