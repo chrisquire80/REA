@@ -21,7 +21,7 @@
 
 ## 📦 Progetti della Suite
 
-### 1. [NotepadREA](file:///c:/Users/ChristianRobecchi/Downloads/REA/NotepadREA/NotepadREA.csproj) (v2.1.0)
+### 1. [NotepadREA](NotepadREA/NotepadREA.csproj) (v2.1.0)
 Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'analisi statica e dinamica di Notepad++ 8.9.8.1 (PE32+ AMD64).
 * **Terminale PowerShell/CMD Incorporato (`F12` / `Ctrl+~`)**: Console interattiva integrata in un cassetto a scomparsa, aperta automaticamente nella cartella del documento corrente per compilare o eseguire script.
 * **Confronto File Side-by-Side (`Ctrl+Alt+D`)**: Interfaccia a doppio editor Scintilla con scorrimento verticale sincronizzato, evidenziazione a riga intera (aggiunte, rimosse, modificate) e navigazione con `F7` e `Shift+F7`.
@@ -33,7 +33,7 @@ Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'a
 * **Find & Replace in Files**: Finestra multi-thread parallelizzata (`Ctrl+Shift+F`) con supporto a sottocartelle, regex e navigazione rapida.
 * **Librerie Native Incorporate (Self-Healing)**: `Scintilla.dll` e `Lexilla.dll` sono incorporate direttamente nell'eseguibile ed auto-estratte al primo avvio se mancanti su disco, rendendo l'eseguibile autonomo al 100%.
 
-### 2. [NoreaLauncher](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaLauncher/NoreaLauncher.csproj) (v2.2.2)
+### 2. [NoreaLauncher](NoreaLauncher/NoreaLauncher.csproj) (v2.2.2)
 Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro e componenti condivisi.
 * **Layout Master-Detail**: Ricerca rapida, elenco applicazioni, stato e azioni principali coerenti con il sistema di design NOREA.
 * **Sistema di design riutilizzabile**: Token colore, tipografia, spaziatura e controlli per i prossimi programmi NOREA in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
@@ -43,14 +43,14 @@ Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro 
 * **Cronologia File Recenti**: Accesso rapido ai file aperti di recente dall'editor direttamente dal menu contestuale del launcher.
 * **Integrità & Rollback**: Calcolo e verifica SHA-256 dei binari con manifesto `manifest.json`. Aggiornamento atomico con backup `.prev` e ripristino di emergenza a caldo.
 
-### 3. [WinSCPREA](file:///c:/Users/ChristianRobecchi/Downloads/REA/WinSCPREA/WinSCPREA.csproj) (v1.0.2)
+### 3. [WinSCPREA](WinSCPREA/WinSCPREA.csproj) (v1.0.2)
 Client SFTP e file manager Windows a due pannelli, ricostruito da zero in C# / WinForms .NET 10 sulla base dell'analisi statica di WinSCP 6.7.1.
 * Connessioni SFTP con password o chiave privata SSH e verifica dell'impronta host SHA-256.
 * Salvataggio dei siti senza password; trasferimenti ricorsivi e gestione di file e cartelle remoti.
 * Harness Python Click basato su [CLI-Anything](WinSCPREA/agent-harness/cli_anything/winscprea/README.md): `winscprea --json site list`, REPL interattiva e comandi per elenco, trasferimento e gestione remota. La logica SFTP resta condivisa con l'app tramite `NoreaCli` e SSH.NET.
 * Perimetro iniziale limitato a SFTP. Analisi e limiti: [ANALISI_WINSCP_REA.md](ANALISI_WINSCP_REA.md).
 
-### 4. [NoreaCli & MCP Server](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaCli/NoreaCli.csproj) (v2.3.0)
+### 4. [NoreaCli & MCP Server](NoreaCli/NoreaCli.csproj) (v2.3.0)
 Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)** conforme alle specifiche 2024-11-05 per collegare la suite ad agenti AI come **Claude Code** e **Google Antigravity**:
 * **Comandi CLI nativi**:
   ```powershell
@@ -68,7 +68,7 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_notify`: notifica sul desktop l'avanzamento o la conclusione di task lunghi tramite flyout toast.
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
-### 5. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
+### 5. [NOREA.Tests](NOREA.Tests/NOREA.Tests.csproj)
 Suite di test automatizzati con **xUnit** (52 test):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).

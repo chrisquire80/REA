@@ -450,7 +450,7 @@ public sealed class MainForm : Form
 
         var info = new Label
         {
-            Text = "Inserisci un percorso o disco per riga (es. C:\\ o C:\\Users\\Nome):",
+            Text = "Inserisci un percorso o disco per riga (es. C:\\ o D:\\Progetti):",
             Dock = DockStyle.Top,
             Height = 32,
             Padding = new Padding(12, 10, 12, 0),
