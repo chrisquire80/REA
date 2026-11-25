@@ -50,6 +50,8 @@ COME USARE LA SUITE SU QUESTO PC:
    - Fai doppio clic su "NoreaLauncher.exe" per aprire il launcher della suite.
    - Oppure apri direttamente "NotepadREA.exe" per l'editor.
    - Apri "WinSCPREA.exe" per il client SFTP a due pannelli.
+   - Apri "EverythingREA.exe" per la ricerca istantanea di file e cartelle.
+   - Dal terminale, "norea search report --root ." usa la stessa sintassi della finestra di ricerca.
 
 2. Requisiti:
    - Windows 10 o Windows 11 (x64).

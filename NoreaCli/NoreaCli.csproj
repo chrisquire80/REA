@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WinSCPREA.Core\WinSCPREA.Core.csproj" />
+    <ProjectReference Include="..\EverythingREA.Core\EverythingREA.Core.csproj" />
   </ItemGroup>
 
 </Project>

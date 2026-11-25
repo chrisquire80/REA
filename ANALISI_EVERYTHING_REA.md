@@ -31,4 +31,4 @@ Everything è un motore di ricerca locale istantanea per file e cartelle su Wind
 | Motore indice | Scansione parallela multi-thread con `EnumerationOptions` + cache persistente su disco + monitoraggio live `FileSystemWatcher` |
 | Sintassi ricerca | AND (`spazio`), OR (`\|`), NOT (`!`), wildcard (`*`, `?`), `regex:`, `ext:`, `file:`, `folder:`, `size:>`, `size:<` |
 | Interfaccia GUI | `ListView` virtualizzata ad alte prestazioni (`VirtualMode`), pillole filtro rapide, ordinamento colonne, tema Scuro/Chiaro `NoreaDesign` |
-| Integrazione Suite | Apertura diretta dei file in **NotepadREA**, copia percorso, gestione cartelle indicizzate e comando CLI `norea search` |
+| Integrazione Suite | Apertura diretta dei file in **NotepadREA**, copia percorso, gestione cartelle indicizzate e comando CLI `norea search <query> [--root <cartella>]` (indicizza la cartella indicata, per default quella corrente, senza usare la cache della GUI) |
