@@ -5,18 +5,49 @@
    - aggiunge "Modifica con NotepadREA" al menu del tasto destro di qualsiasi file
   Windows non consente a un programma di impostarsi come predefinito: l'ultimo clic ("Sempre") resta all'utente.
   Per annullare: rimuovi_associazioni.ps1
+
+  Senza -Sorgente lo script accetta entrambi i layout:
+   - albero del repository: dist\NotepadREA.exe accanto a questo script
+   - pacchetto portatile: NotepadREA.exe nella stessa cartella dello script
 #>
-param([string]$Sorgente = (Join-Path $PSScriptRoot 'dist\NotepadREA.exe'))
+param([string]$Sorgente)
 $ErrorActionPreference = 'Stop'
 
+function Resolve-NotepadReaSource([string]$Explicit) {
+    if (-not [string]::IsNullOrWhiteSpace($Explicit)) {
+        if (-not (Test-Path -LiteralPath $Explicit -PathType Leaf)) {
+            throw "Eseguibile non trovato: $Explicit"
+        }
+        return (Resolve-Path -LiteralPath $Explicit).Path
+    }
+
+    $candidates = @(
+        (Join-Path $PSScriptRoot 'dist\NotepadREA.exe'),
+        (Join-Path $PSScriptRoot 'NotepadREA.exe')
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    throw "NotepadREA.exe non trovato. Cercato in:`n - $($candidates -join "`n - ")"
+}
+
+$Sorgente = Resolve-NotepadReaSource $Sorgente
 $dest = Join-Path $env:LOCALAPPDATA 'Programs\NotepadREA'
 $exe  = Join-Path $dest 'NotepadREA.exe'
 $icoFile = Join-Path $dest 'NotepadREA.ico'
-$srcIco  = Join-Path $PSScriptRoot 'NotepadREA\app.ico'
+$icoCandidates = @(
+    (Join-Path $PSScriptRoot 'NotepadREA\app.ico'),
+    (Join-Path (Split-Path -Parent $Sorgente) 'NotepadREA.ico'),
+    (Join-Path $PSScriptRoot 'app.ico')
+)
+$srcIco = $icoCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 if (Get-Process NotepadREA -ErrorAction SilentlyContinue | Where-Object Path -eq $exe) { throw "Chiudi NotepadREA prima di aggiornarlo." }
 New-Item -ItemType Directory -Force $dest | Out-Null
-Copy-Item $Sorgente $exe -Force
-if (Test-Path $srcIco) { Copy-Item $srcIco $icoFile -Force }
+Copy-Item -LiteralPath $Sorgente $exe -Force
+if ($srcIco) { Copy-Item -LiteralPath $srcIco $icoFile -Force }
 
 $progId = 'NotepadREA.Document'
 $open   = "`"$exe`" `"%1`""

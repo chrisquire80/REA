@@ -298,16 +298,20 @@ public static class NoreaStyles
         }
     }
 
-    private static void ApplyWindowFrame(Form form, NoreaPalette palette)
+    public static void ApplyTitleBar(Form form, bool isDark)
     {
+        if (!form.IsHandleCreated) return;
         try
         {
-            int dark = palette.IsDark ? 1 : 0;
+            int dark = isDark ? 1 : 0;
             DwmSetWindowAttribute(form.Handle, 20, ref dark, sizeof(int));
         }
         catch (DllNotFoundException) { }
         catch (EntryPointNotFoundException) { }
     }
+
+    private static void ApplyWindowFrame(Form form, NoreaPalette palette) =>
+        ApplyTitleBar(form, palette.IsDark);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int valueSize);

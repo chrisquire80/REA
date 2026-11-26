@@ -158,7 +158,7 @@ public static class NoreaBridge
     public static List<Dictionary<string, object>> GetAppsStatus(bool runningOnly = false)
     {
         var result = new List<Dictionary<string, object>>();
-        string[] appIds = ["NotepadREA", "WinSCPREA", "NoreaLauncher"];
+        string[] appIds = ["NotepadREA", "WinSCPREA", "EverythingREA", "NoreaLauncher"];
 
         foreach (var id in appIds)
         {
@@ -169,13 +169,14 @@ public static class NoreaBridge
 
             if (runningOnly && !isRunning) continue;
 
-            string ver = "v2.2.0";
+            string fallback = typeof(NoreaBridge).Assembly.GetName().Version?.ToString(3) ?? "2.5.0";
+            string ver = "v" + fallback;
             if (exe != null && File.Exists(exe))
             {
                 try
                 {
                     var fvi = FileVersionInfo.GetVersionInfo(exe);
-                    ver = "v" + (fvi.ProductVersion?.Split('+')[0].TrimStart('v', 'V') ?? "2.2.0");
+                    ver = "v" + (fvi.ProductVersion?.Split('+')[0].TrimStart('v', 'V') ?? fallback);
                 }
                 catch { }
             }

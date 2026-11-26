@@ -1,6 +1,6 @@
 # Sistema di design NOREA
 
-Questo documento definisce l'aspetto e i comportamenti comuni dei programmi NOREA. I token per le app Windows Forms sono implementati in `NoreaDesign/NoreaDesign.cs`; il launcher e WinSCPREA li usano entrambi.
+Questo documento definisce l'aspetto e i comportamenti comuni dei programmi NOREA. I token per le app Windows Forms sono implementati nel progetto `NoreaDesign` (`NoreaDesign/NoreaDesign.csproj`), referenziato da NoreaLauncher, NotepadREA, WinSCPREA e EverythingREA.
 
 ## Direzione visiva
 
@@ -60,13 +60,17 @@ Usare colori di stato insieme a una descrizione testuale o a un'icona: il colore
 
 ## Riutilizzo in nuovi programmi Windows Forms
 
-Collegare il file condiviso nel `.csproj`:
+Aggiungere il progetto condiviso alla soluzione e referenziarlo:
 
 ```xml
 <ItemGroup>
-  <Compile Include="..\NoreaDesign\NoreaDesign.cs" Link="NoreaDesign\NoreaDesign.cs" />
+  <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
 </ItemGroup>
 ```
+
+`LauncherTheme` nel launcher è solo una vista sulle stesse proprietà di `NoreaPalette`: i colori non sono duplicati. I temi dell'editor in `NotepadREA/Theme.cs` (Light, Dark, Monokai, Solarized) restano distinti, perché sono i colori di sintassi Scintilla e non la palette chrome. Condividono la title bar tramite `NoreaStyles.ApplyTitleBar`.
+
+Il log su file è `NoreaLog`. NotepadREA e NoreaLauncher lo avvolgono con la classe `Log` e mantengono i percorsi già usati: `%AppData%\NotepadREA\logs\notepadrea-yyyyMMdd.log` e `%AppData%\NOREA\logs\launcher-yyyyMMdd.log`.
 
 Poi impostare il tema e applicare gli helper ai controlli:
 

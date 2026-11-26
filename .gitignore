@@ -18,6 +18,8 @@ extracted/
 notepad/
 repo/
 analysis/*.err
+# Inventari PE generati in locale: pesanti e con percorsi assoluti della macchina.
+analysis/*.json
 
 # Temporanei
 *.tmp

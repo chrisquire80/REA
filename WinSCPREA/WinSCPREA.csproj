@@ -6,6 +6,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Versione di prodotto: sovrascrive NoreaSuiteVersion. -->
     <Version>1.0.2</Version>
     <Product>WinSCPREA</Product>
     <AssemblyName>WinSCPREA</AssemblyName>
@@ -15,7 +16,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\WinSCPREA.Core\WinSCPREA.Core.csproj" />
-    <Compile Include="..\NoreaDesign\NoreaDesign.cs" Link="NoreaDesign\NoreaDesign.cs" />
+    <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
     <None Include="..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

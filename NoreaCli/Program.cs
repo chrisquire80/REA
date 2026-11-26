@@ -52,6 +52,9 @@ static class Program
                 case "winscp":
                     return await WinScpAgentCli.RunAsync(args[1..]);
 
+                case "search":
+                    return await EverythingSearchCli.RunAsync(args[1..]);
+
                 default:
                     // Se l'argomento è un file esistente, aprilo direttamente in NotepadREA
                     if (File.Exists(args[0]))
@@ -249,9 +252,11 @@ static class Program
         return 0;
     }
 
+    static string CliVersion => typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "2.5.0";
+
     static void PrintUsage()
     {
-        Console.WriteLine(@"NOREA Suite CLI & AI Agent Bridge (v2.3.0)
+        Console.WriteLine($@"NOREA Suite CLI & AI Agent Bridge (v{CliVersion})
 Uso: norea <comando> [argomenti...]
 
 Comandi Editor:
@@ -262,8 +267,10 @@ Comandi Editor:
 Comandi Suite & Notifiche:
   notify <app> [msg] [--old v] [--new v]  Mostra la notifica desktop toast flyout
   list [--json] [--running]                Elenca le applicazioni NOREA e i processi attivi
-  launch <appId>                           Avvia un'applicazione (es. NotepadREA, WinSCPREA)
+  launch <appId>                           Avvia un'applicazione (es. NotepadREA, WinSCPREA, EverythingREA)
   status                                   Stato generale della suite
+  search <query> [--root <dir>] [--limit <n>] [--json]
+                                           Cerca file con la sintassi di EverythingREA
 
 Gestione SFTP agent-native:
   winscp <comando> [--json]               Siti, elenco remoto e trasferimenti SFTP

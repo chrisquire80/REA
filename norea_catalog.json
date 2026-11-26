@@ -4,7 +4,7 @@
     "Prefix": "Notepad",
     "Suffix": "REA",
     "AuthorBadge": "BY NOREA",
-    "Version": "v2.2.0",
+    "Version": "v2.5.0",
     "Runtime": "Scintilla/Lexilla · .NET 10",
     "Tagline": "Editor di testo e codice Scintilla/Lexilla",
     "Description": "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",

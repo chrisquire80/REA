@@ -106,4 +106,37 @@ public class McpAndCliTests
             tool => tool?["name"]?.GetValue<string>() == "norea_open_file");
         Assert.True(responses[2]?["result"]?["isError"]?.GetValue<bool>());
     }
+
+    [Fact]
+    public async Task EverythingSearchCli_IndexesRootAndPrintsMatches()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"norea-search-cli-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "report_2026.txt"), "fattura");
+        File.WriteAllText(Path.Combine(root, "notes.md"), "bozza");
+        try
+        {
+            var missing = new StringWriter();
+            Assert.Equal(1, await EverythingSearchCli.RunAsync([], new StringWriter(), missing));
+            Assert.Contains("query", missing.ToString(), StringComparison.OrdinalIgnoreCase);
+
+            var stdout = new StringWriter();
+            var stderr = new StringWriter();
+            int code = await EverythingSearchCli.RunAsync(
+                ["report", "--root", root, "--limit", "10"], stdout, stderr);
+
+            Assert.Equal(0, code);
+            Assert.Contains("report_2026.txt", stdout.ToString());
+            Assert.DoesNotContain("notes.md", stdout.ToString());
+
+            var jsonOut = new StringWriter();
+            Assert.Equal(0, await EverythingSearchCli.RunAsync(
+                ["ext:md", "--root", root, "--json"], jsonOut, new StringWriter()));
+            Assert.Contains("notes.md", jsonOut.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }

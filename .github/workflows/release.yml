@@ -5,6 +5,16 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag già esistente a cui allegare gli asset (es. v2.5.0). Esegui il workflow da main: fa il checkout del tag e non crea né sposta tag.'
+        required: true
+        type: string
+      mark_as_latest:
+        description: 'Segna la release come latest. Attivarlo solo per la versione più recente (v2.5.0), non quando si ripubblicano v2.4.0 o v2.4.1.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -16,8 +26,38 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Resolve release tag
+        id: rel
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $tag = if ($env:EVENT_NAME -eq 'workflow_dispatch') { $env:INPUT_TAG.Trim() } else { $env:REF_NAME.Trim() }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?$') {
+            Write-Error "Tag di release non valido: '$tag'. Atteso un tag esistente nel formato vX.Y.Z."
+            exit 1
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Confirm the tag already exists
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:RELEASE_TAG" --jq .ref
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Il tag $env:RELEASE_TAG non esiste su GitHub. Questo workflow non crea tag."
+            exit 1
+          }
+
+      - name: Checkout release sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.rel.outputs.tag }}
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -39,7 +79,12 @@ jobs:
           Set-Content -Path checksums.txt -Value "SHA256 (NOREA_Suite_Portable.zip) = $hash"
           Get-Content checksums.txt
 
+      # Le attestazioni Sigstore non sono disponibili sui repository privati di un account
+      # personale ("Feature not available for user-owned private repositories"). Il controllo
+      # SHA-256 del launcher non dipende da questa attestazione: legge asset.digest (sha256:)
+      # calcolato da GitHub quando l'asset viene caricato. checksums.txt è sempre allegato.
       - name: Attest release artifacts
+        if: github.event.repository.visibility != 'private' || github.event.repository.owner.type == 'Organization'
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
@@ -47,6 +92,7 @@ jobs:
             checksums.txt
 
       - name: Verify release artifact attestations
+        if: github.event.repository.visibility != 'private' || github.event.repository.owner.type == 'Organization'
         run: |
           gh attestation verify NOREA_Suite_Portable.zip --repo $env:GITHUB_REPOSITORY --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/release.yml"
           gh attestation verify checksums.txt --repo $env:GITHUB_REPOSITORY --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/release.yml"
@@ -56,9 +102,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: NOREA Suite ${{ github.ref_name }}
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ steps.rel.outputs.tag }}
+          name: NOREA Suite ${{ steps.rel.outputs.tag }}
           draft: false
           prerelease: false
+          make_latest: ${{ (github.event_name != 'workflow_dispatch' || inputs.mark_as_latest) && 'true' || 'false' }}
           generate_release_notes: true
           files: |
             NOREA_Suite_Portable.zip

@@ -3,7 +3,7 @@
 [![Build & Release](https://github.com/chrisquire80/REA/actions/workflows/release.yml/badge.svg)](https://github.com/chrisquire80/REA/actions/workflows/release.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/xUnit-51%20Passed-brightgreen?logo=xunit)
+![Tests](https://img.shields.io/badge/xUnit-64%20Passed-brightgreen?logo=xunit)
 [![Release](https://img.shields.io/github/v/release/chrisquire80/REA?color=blue&label=Latest%20Release)](https://github.com/chrisquire80/REA/releases)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -21,7 +21,7 @@
 
 ## 📦 Progetti della Suite
 
-### 1. [NotepadREA](file:///c:/Users/ChristianRobecchi/Downloads/REA/NotepadREA/NotepadREA.csproj) (v2.1.0)
+### 1. [NotepadREA](NotepadREA/NotepadREA.csproj) (v2.5.0)
 Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'analisi statica e dinamica di Notepad++ 8.9.8.1 (PE32+ AMD64).
 * **Terminale PowerShell/CMD Incorporato (`F12` / `Ctrl+~`)**: Console interattiva integrata in un cassetto a scomparsa, aperta automaticamente nella cartella del documento corrente per compilare o eseguire script.
 * **Confronto File Side-by-Side (`Ctrl+Alt+D`)**: Interfaccia a doppio editor Scintilla con scorrimento verticale sincronizzato, evidenziazione a riga intera (aggiunte, rimosse, modificate) e navigazione con `F7` e `Shift+F7`.
@@ -33,7 +33,7 @@ Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'a
 * **Find & Replace in Files**: Finestra multi-thread parallelizzata (`Ctrl+Shift+F`) con supporto a sottocartelle, regex e navigazione rapida.
 * **Librerie Native Incorporate (Self-Healing)**: `Scintilla.dll` e `Lexilla.dll` sono incorporate direttamente nell'eseguibile ed auto-estratte al primo avvio se mancanti su disco, rendendo l'eseguibile autonomo al 100%.
 
-### 2. [NoreaLauncher](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaLauncher/NoreaLauncher.csproj) (v2.2.2)
+### 2. [NoreaLauncher](NoreaLauncher/NoreaLauncher.csproj) (v2.5.0)
 Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro e componenti condivisi.
 * **Layout Master-Detail**: Ricerca rapida, elenco applicazioni, stato e azioni principali coerenti con il sistema di design NOREA.
 * **Sistema di design riutilizzabile**: Token colore, tipografia, spaziatura e controlli per i prossimi programmi NOREA in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
@@ -43,14 +43,21 @@ Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro 
 * **Cronologia File Recenti**: Accesso rapido ai file aperti di recente dall'editor direttamente dal menu contestuale del launcher.
 * **Integrità & Rollback**: Calcolo e verifica SHA-256 dei binari con manifesto `manifest.json`. Aggiornamento atomico con backup `.prev` e ripristino di emergenza a caldo.
 
-### 3. [WinSCPREA](file:///c:/Users/ChristianRobecchi/Downloads/REA/WinSCPREA/WinSCPREA.csproj) (v1.0.2)
+### 3. [WinSCPREA](WinSCPREA/WinSCPREA.csproj) (v1.0.2)
 Client SFTP e file manager Windows a due pannelli, ricostruito da zero in C# / WinForms .NET 10 sulla base dell'analisi statica di WinSCP 6.7.1.
 * Connessioni SFTP con password o chiave privata SSH e verifica dell'impronta host SHA-256.
 * Salvataggio dei siti senza password; trasferimenti ricorsivi e gestione di file e cartelle remoti.
 * Harness Python Click basato su [CLI-Anything](WinSCPREA/agent-harness/cli_anything/winscprea/README.md): `winscprea --json site list`, REPL interattiva e comandi per elenco, trasferimento e gestione remota. La logica SFTP resta condivisa con l'app tramite `NoreaCli` e SSH.NET.
 * Perimetro iniziale limitato a SFTP. Analisi e limiti: [ANALISI_WINSCP_REA.md](ANALISI_WINSCP_REA.md).
 
-### 4. [NoreaCli & MCP Server](file:///c:/Users/ChristianRobecchi/Downloads/REA/NoreaCli/NoreaCli.csproj) (v2.3.0)
+### 4. [EverythingREA](EverythingREA/EverythingREA.csproj) (v1.0.0)
+Motore di ricerca locale istantanea, ricostruito da zero in C# / WinForms .NET 10 sulla base dell'analisi statica di Everything 1.4.1.1032. Il motore è in [EverythingREA.Core](EverythingREA.Core/EverythingREA.Core.csproj); l'interfaccia usa la palette condivisa descritta in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
+* Indicizzazione parallela delle cartelle configurate, cache locale e aggiornamento dei risultati a ogni carattere.
+* Sintassi: spazio = AND, `|` = OR, `!` = NOT, wildcard (`*`, `?`), `regex:`, `ext:`, `file:`, `folder:`, `size:>` e `size:<`.
+* Apertura del file selezionato in NotepadREA. Analisi e limiti: [ANALISI_EVERYTHING_REA.md](ANALISI_EVERYTHING_REA.md).
+* Dalla riga di comando, `norea search` usa lo stesso motore su una cartella (per default la directory corrente) senza avviare la GUI né scriverne la cache.
+
+### 5. [NoreaCli & MCP Server](NoreaCli/NoreaCli.csproj) (v2.5.0)
 Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)** conforme alle specifiche 2024-11-05 per collegare la suite ad agenti AI come **Claude Code** e **Google Antigravity**:
 * **Comandi CLI nativi**:
   ```powershell
@@ -59,6 +66,9 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   norea hex payload.bin              # Ispezione esadecimale ed entropia
   norea notify "Build riuscita!"     # Mostra il flyout toast desktop in stile ArtCraft
   norea list --json                  # Telemetria e stato delle app in formato JSON
+  norea launch EverythingREA         # Avvia la ricerca istantanea
+  norea search report --root .       # Cerca nella cartella corrente (sintassi EverythingREA)
+  norea winscp site list --json      # Siti SFTP, senza salvare la password
   norea setup-ai                     # Configurazione automatica 1-click per Claude Code e Antigravity
   ```
 * **Strumenti MCP per Agenti AI**:
@@ -68,8 +78,8 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_notify`: notifica sul desktop l'avanzamento o la conclusione di task lunghi tramite flyout toast.
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
-### 5. [NOREA.Tests](file:///c:/Users/ChristianRobecchi/Downloads/REA/NOREA.Tests/NOREA.Tests.csproj)
-Suite di test automatizzati con **xUnit** (52 test):
+### 6. [NOREA.Tests](NOREA.Tests/NOREA.Tests.csproj) e [NOREA.Benchmarks](NOREA.Benchmarks/NOREA.Benchmarks.csproj)
+Suite di test automatizzati con **xUnit** (64 test):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
 * Test per algoritmi di diff `DiffEngine` e parser unificato `GitGutter`.
@@ -77,15 +87,17 @@ Suite di test automatizzati con **xUnit** (52 test):
 * Test per applicazione aggiornamenti da archivio: download simulato, hash, rollback e rifiuto di percorsi ZIP esterni alla cartella di installazione.
 * Test di integrazione del server MCP JSON-RPC su stream, modifiche ai file aperti e conflitti di salvataggio.
 * Test di utilità del launcher `LauncherUtil` (split nomi REA, semantica delle versioni `CompareVersions`, anonimizzazione percorsi, telemetria).
+* Test di `EverythingREA.Core` (sintassi di ricerca, cache isolata) e del comando `norea search`.
+* Test di `WinSCPREA.Core` e dell'harness `norea winscp`. L'harness Python in `WinSCPREA/agent-harness` ha i propri test pytest, separati dai 64 test xUnit.
 
 ---
 
 ## 🛡️ Clean-Room Engineering Guarantee
 
-Il codice sorgente di **NotepadREA**, **WinSCPREA** e **NoreaLauncher** è sviluppato **interamente da zero in C# .NET 10**:
-1. Nessun codice sorgente o risorsa grafica di Notepad++ o WinSCP è incluso nei sorgenti o nei binari delle ricostruzioni.
-2. NotepadREA usa Scintilla5.NET; WinSCPREA usa SSH.NET per SFTP.
-3. Le analisi sono documentate in ANALISI_REA.md e ANALISI_WINSCP_REA.md.
+Il codice sorgente di **NotepadREA**, **WinSCPREA**, **EverythingREA** e **NoreaLauncher** è sviluppato **interamente da zero in C# .NET 10**:
+1. Nessun codice sorgente o risorsa grafica di Notepad++, WinSCP o Everything è incluso nei sorgenti o nei binari delle ricostruzioni.
+2. NotepadREA usa Scintilla5.NET; WinSCPREA usa SSH.NET per SFTP. EverythingREA non richiama il binario originale.
+3. Le analisi sono documentate in [ANALISI_REA.md](ANALISI_REA.md), [ANALISI_WINSCP_REA.md](ANALISI_WINSCP_REA.md) e [ANALISI_EVERYTHING_REA.md](ANALISI_EVERYTHING_REA.md).
 
 ---
 
@@ -93,24 +105,31 @@ Il codice sorgente di **NotepadREA**, **WinSCPREA** e **NoreaLauncher** è svilu
 
 Requisiti: **.NET 10 SDK** (Windows 10 / 11 x64).
 
+La versione della suite è **2.5.0**, definita in [Directory.Build.props](Directory.Build.props) (`NoreaSuiteVersion`). NotepadREA, NoreaLauncher e NoreaCli la ereditano. WinSCPREA resta **1.0.2** e EverythingREA **1.0.0**: sono versioni di prodotto e sovrascrivono quella della suite nel rispettivo `.csproj`. Il catalogo del launcher (`norea_catalog.json`) usa gli stessi numeri.
+
 ```powershell
 # Ripristino e compilazione soluzione
 dotnet build NOREA.slnx -c Release
 
-# Esecuzione test unitari (52 test)
+# Esecuzione test unitari (64 test)
 dotnet test NOREA.Tests\NOREA.Tests.csproj
 
-# Generazione automatica pacchetto portatile (.zip compatto ~3 MB)
+# Generazione automatica pacchetto portatile
 .\crea_pacchetto_portatile.ps1
 
 # Pubblicazione manuale binari ad alte prestazioni in dist\
 dotnet publish NotepadREA\NotepadREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
 dotnet publish NoreaLauncher\NoreaLauncher.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
 dotnet publish WinSCPREA\WinSCPREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
+dotnet publish EverythingREA\EverythingREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
+dotnet publish NoreaCli\NoreaCli.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
 
 # Registrazione associazioni file ed estensioni (.txt, .cs, .py, ecc.)
+# Nel repository usa dist\NotepadREA.exe; nel pacchetto portatile usa NotepadREA.exe accanto allo script.
 .\installa_associazioni.ps1
 ```
+
+La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 64 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
 
 ### Benchmark I/O file grandi
 
@@ -123,15 +142,34 @@ dotnet run --project NOREA.Benchmarks\NOREA.Benchmarks.csproj -c Release -- 1,16
 
 ### Verifica provenienza del pacchetto di release
 
-Prima di pubblicare una release, la GitHub Action verifica l'attestazione di
-provenienza di entrambi gli artefatti. La stessa verifica è disponibile localmente
-con GitHub CLI:
+Ogni release allega `NOREA_Suite_Portable.zip` e `checksums.txt` (SHA-256 dello zip).
+Il launcher, in `NoreaLauncher/CloudUpdateService.cs`, rifiuta un aggiornamento se
+l'asset GitHub non espone un digest `sha256:` di 64 cifre esadecimali, e confronta
+quel digest con l'hash del file scaricato. GitHub calcola il digest al caricamento
+dell'asset: non dipende dall'attestazione Sigstore.
+
+L'attestazione di provenienza (`actions/attest-build-provenance`) viene eseguita solo
+quando il repository è pubblico oppure appartiene a un'organizzazione. Sui repository
+privati di un account personale GitHub risponde
+`Feature not available for user-owned private repositories` e il passo viene saltato,
+insieme alla verifica `gh attestation verify`. Il controllo SHA-256 resta invariato.
+
+Sui repository in cui l'attestazione è disponibile:
 
 ```powershell
 gh attestation verify NOREA_Suite_Portable.zip --repo chrisquire80/REA
 ```
 
-Il controllo SHA-256 eseguito dal launcher verifica l'integrità rispetto al digest
-pubblicato da GitHub; il launcher non verifica autonomamente l'attestazione. Il
-controllo CLI verifica anche il repository e il workflow che hanno prodotto
-l'artefatto.
+### Ripubblicare gli asset di un tag già esistente
+
+Le release `v2.4.0` e `v2.5.0` (e, se priva di asset, anche `v2.4.1`) sono arrivate
+ai test ma si sono fermate sull'attestazione, quindi lo zip non è stato caricato.
+Dopo il merge di questa correzione su `main`:
+
+1. Apri **Actions → Build & Release Portable Suite → Run workflow**.
+2. In **Use workflow from** scegli il branch `main`. Non scegliere il tag vecchio: quel commit contiene ancora il workflow che fallisce.
+3. Input `tag`: `v2.4.0`. Lascia `mark_as_latest` disattivato. Il workflow verifica che il tag esista, ne fa il checkout e allega gli asset a quella release. Non crea e non sposta tag.
+4. Ripeti per `v2.4.1` se anche quella release è senza zip, sempre con `mark_as_latest` disattivato.
+5. Ripeti con `tag` = `v2.5.0` e `mark_as_latest` attivo, così la release più recente resta quella predefinita.
+
+In alternativa, per pubblicare una versione nuova, crea il tag `vX.Y.Z` sul commit desiderato e fai push: il push di un tag `v*` avvia lo stesso workflow. Non serve ricreare i tag `v2.4.0` / `v2.5.0` se l'obiettivo è solo allegare gli asset mancanti al sorgente di quei tag.

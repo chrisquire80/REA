@@ -1,5 +1,7 @@
 # Third-Party Software Notices and Licenses
 
+NOREA itself is released under the MIT License, copyright Christian Robecchi, 2026. The full text is in [LICENSE](LICENSE).
+
 This project incorporates components governed by the following licenses:
 
 ---
