@@ -169,7 +169,7 @@ public static class NoreaBridge
 
             if (runningOnly && !isRunning) continue;
 
-            string fallback = typeof(NoreaBridge).Assembly.GetName().Version?.ToString(3) ?? "2.5.0";
+            string fallback = typeof(NoreaBridge).Assembly.GetName().Version?.ToString(3) ?? "2.6.0";
             string ver = "v" + fallback;
             if (exe != null && File.Exists(exe))
             {

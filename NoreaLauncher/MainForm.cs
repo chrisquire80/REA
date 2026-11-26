@@ -51,7 +51,7 @@ public sealed partial class MainForm : Form
     [DllImport("user32.dll")] static extern bool ReleaseCapture();
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
 
-    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.5.0");
+    public static string LauncherVersion => "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.6.0");
 
     public MainForm()
     {

@@ -21,7 +21,7 @@
 
 ## 📦 Progetti della Suite
 
-### 1. [NotepadREA](NotepadREA/NotepadREA.csproj) (v2.5.0)
+### 1. [NotepadREA](NotepadREA/NotepadREA.csproj) (v2.6.0)
 Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'analisi statica e dinamica di Notepad++ 8.9.8.1 (PE32+ AMD64).
 * **Terminale PowerShell/CMD Incorporato (`F12` / `Ctrl+~`)**: Console interattiva integrata in un cassetto a scomparsa, aperta automaticamente nella cartella del documento corrente per compilare o eseguire script.
 * **Confronto File Side-by-Side (`Ctrl+Alt+D`)**: Interfaccia a doppio editor Scintilla con scorrimento verticale sincronizzato, evidenziazione a riga intera (aggiunte, rimosse, modificate) e navigazione con `F7` e `Shift+F7`.
@@ -33,7 +33,7 @@ Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'a
 * **Find & Replace in Files**: Finestra multi-thread parallelizzata (`Ctrl+Shift+F`) con supporto a sottocartelle, regex e navigazione rapida.
 * **Librerie Native Incorporate (Self-Healing)**: `Scintilla.dll` e `Lexilla.dll` sono incorporate direttamente nell'eseguibile ed auto-estratte al primo avvio se mancanti su disco, rendendo l'eseguibile autonomo al 100%.
 
-### 2. [NoreaLauncher](NoreaLauncher/NoreaLauncher.csproj) (v2.5.0)
+### 2. [NoreaLauncher](NoreaLauncher/NoreaLauncher.csproj) (v2.6.0)
 Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro e componenti condivisi.
 * **Layout Master-Detail**: Ricerca rapida, elenco applicazioni, stato e azioni principali coerenti con il sistema di design NOREA.
 * **Sistema di design riutilizzabile**: Token colore, tipografia, spaziatura e controlli per i prossimi programmi NOREA in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
@@ -57,7 +57,7 @@ Motore di ricerca locale istantanea, ricostruito da zero in C# / WinForms .NET 1
 * Apertura del file selezionato in NotepadREA. Analisi e limiti: [ANALISI_EVERYTHING_REA.md](ANALISI_EVERYTHING_REA.md).
 * Dalla riga di comando, `norea search` usa lo stesso motore su una cartella (per default la directory corrente) senza avviare la GUI né scriverne la cache.
 
-### 5. [NoreaCli & MCP Server](NoreaCli/NoreaCli.csproj) (v2.5.0)
+### 5. [NoreaCli & MCP Server](NoreaCli/NoreaCli.csproj) (v2.6.0)
 Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)** conforme alle specifiche 2024-11-05 per collegare la suite ad agenti AI come **Claude Code** e **Google Antigravity**:
 * **Comandi CLI nativi**:
   ```powershell
@@ -106,7 +106,7 @@ Il codice sorgente di **NotepadREA**, **WinSCPREA**, **EverythingREA** e **Norea
 
 Requisiti: **.NET 10 SDK** (Windows 10 / 11 x64).
 
-La versione della suite è **2.5.0**, definita in [Directory.Build.props](Directory.Build.props) (`NoreaSuiteVersion`). NotepadREA, NoreaLauncher e NoreaCli la ereditano. WinSCPREA resta **1.0.2** e EverythingREA **1.0.0**: sono versioni di prodotto e sovrascrivono quella della suite nel rispettivo `.csproj`. Il catalogo del launcher (`norea_catalog.json`) usa gli stessi numeri.
+La versione della suite è **2.6.0**, definita in [Directory.Build.props](Directory.Build.props) (`NoreaSuiteVersion`). NotepadREA, NoreaLauncher e NoreaCli la ereditano. WinSCPREA resta **1.0.2** e EverythingREA **1.0.0**: sono versioni di prodotto e sovrascrivono quella della suite nel rispettivo `.csproj`. Il catalogo del launcher (`norea_catalog.json`) usa gli stessi numeri. Il manifest winget non è versionato a mano: `crea_installer.ps1` legge `NoreaSuiteVersion` al momento della release.
 
 ```powershell
 # Ripristino e compilazione soluzione
@@ -182,6 +182,6 @@ Dopo il merge di questa correzione su `main`:
 2. In **Use workflow from** scegli il branch `main`. Non scegliere il tag vecchio: quel commit contiene ancora il workflow che fallisce.
 3. Input `tag`: `v2.4.0`. Lascia `mark_as_latest` disattivato. Il workflow verifica che il tag esista, ne fa il checkout e allega gli asset a quella release. Non crea e non sposta tag.
 4. Ripeti per `v2.4.1` se anche quella release è senza zip, sempre con `mark_as_latest` disattivato.
-5. Ripeti con `tag` = `v2.5.0` e `mark_as_latest` attivo, così la release più recente resta quella predefinita.
+5. Ripeti con `tag` = `v2.5.0` e `mark_as_latest` disattivato se esiste già `v2.6.0`: la release predefinita è la più recente.
 
-In alternativa, per pubblicare una versione nuova, crea il tag `vX.Y.Z` sul commit desiderato e fai push: il push di un tag `v*` avvia lo stesso workflow. Non serve ricreare i tag `v2.4.0` / `v2.5.0` se l'obiettivo è solo allegare gli asset mancanti al sorgente di quei tag.
+Per pubblicare la suite 2.6.0, crea il tag `v2.6.0` sul commit che porta `NoreaSuiteVersion` a 2.6.0 e fai push del tag. Il push di un tag `v*` avvia lo stesso workflow, che ricostruisce le note dai commit fra `v2.5.0` e `v2.6.0`. Non serve ricreare i tag `v2.4.0` / `v2.5.0` se l'obiettivo è solo allegare gli asset mancanti al sorgente di quei tag.
