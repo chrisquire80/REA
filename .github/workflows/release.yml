@@ -42,16 +42,38 @@ jobs:
           "tag=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Confirm the tag already exists
+        id: tag
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.rel.outputs.tag }}
         run: |
-          gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:RELEASE_TAG" --jq .ref
+          $json = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:RELEASE_TAG"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Il tag $env:RELEASE_TAG non esiste su GitHub. Questo workflow non crea tag."
             exit 1
           }
+          $ref = $json | ConvertFrom-Json
+          $sha = $ref.object.sha
+          $type = $ref.object.type
+          # Un tag annotato punta a un oggetto tag: si scende fino al commit.
+          # L'API delle release accetta come target_commitish solo un branch o uno SHA, non il nome del tag.
+          for ($i = 0; $type -eq 'tag' -and $i -lt 5; $i++) {
+            $tagJson = gh api "repos/$env:GITHUB_REPOSITORY/git/tags/$sha"
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Impossibile risolvere il commit del tag $env:RELEASE_TAG."
+              exit 1
+            }
+            $tagObj = $tagJson | ConvertFrom-Json
+            $sha = $tagObj.object.sha
+            $type = $tagObj.object.type
+          }
+          if ($type -ne 'commit' -or $sha -notmatch '^[0-9a-fA-F]{40}$') {
+            Write-Error "Il tag $env:RELEASE_TAG non risolve a un commit ($type $sha)."
+            exit 1
+          }
+          "sha=$sha" >> $env:GITHUB_OUTPUT
+          Write-Host "Tag $env:RELEASE_TAG -> $sha"
 
       - name: Checkout release sources
         uses: actions/checkout@v4
@@ -103,7 +125,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.rel.outputs.tag }}
-          target_commitish: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ steps.tag.outputs.sha }}
           name: NOREA Suite ${{ steps.rel.outputs.tag }}
           draft: false
           prerelease: false
