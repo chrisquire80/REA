@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag già esistente a cui allegare gli asset (es. v2.6.0). Esegui il workflow da main: fa il checkout del tag e non crea né sposta tag.'
+        description: 'Tag già esistente a cui allegare gli asset (es. v2.6.1). Esegui il workflow da main: fa il checkout del tag e non crea né sposta tag.'
         required: true
         type: string
       mark_as_latest:
-        description: 'Segna la release come latest. Attivarlo solo per la versione più recente (v2.6.0), non quando si ripubblicano tag più vecchi.'
+        description: 'Segna la release come latest. Attivarlo solo per la versione più recente (v2.6.1), non quando si ripubblicano tag più vecchi.'
         required: false
         type: boolean
         default: false

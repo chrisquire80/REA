@@ -41,7 +41,7 @@ public sealed class AppEntry
     public string Prefix { get; set; } = "";
     public string Suffix { get; set; } = "REA";
     public string AuthorBadge { get; set; } = "BY NOREA";
-    public string Version { get; set; } = "v2.6.0";
+    public string Version { get; set; } = "v2.6.1";
     public string Runtime { get; set; } = "Scintilla/Lexilla · .NET 10";
     public string Tagline { get; set; } = "";
     public string Description { get; set; } = "";

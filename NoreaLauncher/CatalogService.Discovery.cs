@@ -245,7 +245,7 @@ public static partial class CatalogService
     [
         new()
         {
-            Id = "NotepadREA", Prefix = "Notepad", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v2.6.0",
+            Id = "NotepadREA", Prefix = "Notepad", Suffix = "REA", AuthorBadge = "BY NOREA", Version = "v2.6.1",
             Runtime = "Scintilla/Lexilla · .NET 10",
             Tagline = "Editor di testo e codice Scintilla/Lexilla",
             Description = "Ricostruzione completa da zero basata sull'analisi statica REA di Notepad++ 8.9.8.1.",
