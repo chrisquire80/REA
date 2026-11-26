@@ -151,6 +151,8 @@ l'asset GitHub non espone un digest `sha256:` di 64 cifre esadecimali, e confron
 quel digest con l'hash del file scaricato. GitHub calcola il digest al caricamento
 dell'asset: non dipende dall'attestazione Sigstore.
 
+La firma Authenticode è opzionale. Senza i segreti descritti in [docs/FIRMA_AUTHENTICODE.md](docs/FIRMA_AUTHENTICODE.md) il pacchetto resta non firmato e il workflow non cambia. Con un PFX o con Azure Artifact Signing, gli eseguibili nello zip vengono firmati prima della compressione.
+
 L'attestazione di provenienza (`actions/attest-build-provenance`) viene eseguita solo
 quando il repository è pubblico oppure appartiene a un'organizzazione. Sui repository
 privati di un account personale GitHub risponde

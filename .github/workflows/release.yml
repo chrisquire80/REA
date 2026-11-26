@@ -98,7 +98,18 @@ jobs:
         run: dotnet test NOREA.Tests/NOREA.Tests.csproj --no-restore --verbosity normal
 
       - name: Build Portable Package
-        run: pwsh ./crea_pacchetto_portatile.ps1
+        shell: pwsh
+        env:
+          NOREA_CODESIGN_PFX_BASE64: ${{ secrets.NOREA_CODESIGN_PFX_BASE64 }}
+          NOREA_CODESIGN_PFX_PATH: ${{ secrets.NOREA_CODESIGN_PFX_PATH }}
+          NOREA_CODESIGN_PFX_PASSWORD: ${{ secrets.NOREA_CODESIGN_PFX_PASSWORD }}
+          NOREA_AZURE_SIGNING_ENDPOINT: ${{ secrets.NOREA_AZURE_SIGNING_ENDPOINT }}
+          NOREA_AZURE_SIGNING_ACCOUNT: ${{ secrets.NOREA_AZURE_SIGNING_ACCOUNT }}
+          NOREA_AZURE_SIGNING_PROFILE: ${{ secrets.NOREA_AZURE_SIGNING_PROFILE }}
+          NOREA_AZURE_TENANT_ID: ${{ secrets.NOREA_AZURE_TENANT_ID }}
+          NOREA_AZURE_CLIENT_ID: ${{ secrets.NOREA_AZURE_CLIENT_ID }}
+          NOREA_AZURE_CLIENT_SECRET: ${{ secrets.NOREA_AZURE_CLIENT_SECRET }}
+        run: ./crea_pacchetto_portatile.ps1
 
       - name: Calculate Checksums
         run: |

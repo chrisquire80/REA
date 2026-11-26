@@ -68,6 +68,11 @@ Non richiede installazione ne' privilegi di amministratore per funzionare!
 "@
 Set-Content -Path (Join-Path $outDir "LEGGIMI_PORTATILE.txt") -Value $readmeContent -Encoding UTF8
 
+# Senza i segreti di firma questa chiamata esce subito.
+. (Join-Path $root "firma_authenticode.ps1")
+$executables = @(Get-ChildItem -LiteralPath $outDir -Filter *.exe -File | ForEach-Object { $_.FullName })
+Invoke-NoreaAuthenticode -Files $executables
+
 Write-Host "[3/3] Compressione in archivio ZIP..." -ForegroundColor Yellow
 if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
 Compress-Archive -Path "$outDir\*" -DestinationPath $zipPath -Force
