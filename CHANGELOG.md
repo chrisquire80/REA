@@ -1,21 +1,15 @@
 # Changelog
 
-Generato dai messaggi di commit fra i tag `v*`. Il workflow di release aggiorna questo file e usa la sezione del tag come note della release.
+Generato dai messaggi di commit fra i tag `v*`. Se esiste `docs/release-notes/<tag>.md`, quella sezione usa quel testo. Il workflow di release aggiorna questo file e usa la sezione del tag come note della release.
 
-## Non rilasciato
+## v2.6.1
 
-- feat(launcher): document process telemetry and add an opt-out
-- test: cover editor, SFTP, search, and catalog decisions outside the forms
-- ci: move Actions to Node 24 and keep only win-x64 Scintilla natives
-- fix(release): pass the tag commit SHA as target_commitish
-- ci: publish coverage, run the harness, and check the package
-- refactor: share NoreaDesign and split the large forms
-- docs: document EverythingREA and the real norea commands
-- build: centralize suite version on 2.5.0
-- chore: drop machine-specific PE analysis dumps
-- fix(installer): find NotepadREA.exe in repo and portable layouts
-- docs: add the MIT license for NOREA
-- fix(release): skip provenance attestation on user-owned private repos
+- EverythingREA: la ricerca copia l'indice sotto lock e non dereferenzia più campi nulli. Dopo la ricostruzione un watcher poteva passare un elemento nullo a CompileQuery e chiudere l'app con NullReferenceException.
+- NoreaLauncher: il repository salvato `ChristianRobecchi/REA` (vecchio default del client aggiornamenti, HTTP 404) viene corretto in `chrisquire80/REA`. Se il repository configurato risponde ancora 404, la barra degli aggiornamenti lo segnala invece di lasciare solo un avviso nel log.
+
+## v2.6.0
+
+- Versione di suite 2.6.0: firma Authenticode opzionale, note di rilascio generate dai tag, installer per utente, MSIX e manifest winget, benchmark di EverythingREA, telemetria con opt-out e test della logica delle finestre.
 
 ## v2.5.0
 

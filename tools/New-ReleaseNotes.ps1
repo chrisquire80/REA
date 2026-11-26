@@ -27,8 +27,22 @@ function Get-CommitSubjects {
     return $subjects
 }
 
+function Get-CuratedBody {
+    param([string]$Heading)
+    if ($Heading -notmatch '^v\d+') { return $null }
+    $path = Join-Path $RepoRoot "docs/release-notes/$Heading.md"
+    if (-not (Test-Path -LiteralPath $path)) { return $null }
+    $raw = [System.IO.File]::ReadAllText($path).Trim()
+    if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+    return $raw
+}
+
 function Format-Section {
     param([string]$Heading, [string[]]$Subjects)
+    $curated = Get-CuratedBody $Heading
+    if ($curated) {
+        return @("## $Heading", "", $curated, "")
+    }
     $lines = @("## $Heading", "")
     if ($Subjects.Count -eq 0) {
         $lines += "- Nessun cambiamento registrato."
@@ -81,7 +95,7 @@ try {
     $header = @(
         "# Changelog",
         "",
-        "Generato dai messaggi di commit fra i tag ``v*``. Il workflow di release aggiorna questo file e usa la sezione del tag come note della release.",
+        "Generato dai messaggi di commit fra i tag ``v*``. Se esiste ``docs/release-notes/<tag>.md``, quella sezione usa quel testo. Il workflow di release aggiorna questo file e usa la sezione del tag come note della release.",
         ""
     )
     $body = New-Object System.Collections.Generic.List[string]

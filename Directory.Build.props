@@ -5,7 +5,7 @@
     (WinSCPREA 1.0.2, EverythingREA 1.0.0 e le librerie Core).
   -->
   <PropertyGroup>
-    <NoreaSuiteVersion>2.6.0</NoreaSuiteVersion>
+    <NoreaSuiteVersion>2.6.1</NoreaSuiteVersion>
     <Version>$(NoreaSuiteVersion)</Version>
     <Company>Christian Robecchi</Company>
     <Copyright>Copyright (c) 2026 Christian Robecchi</Copyright>
