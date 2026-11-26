@@ -111,10 +111,32 @@ jobs:
           NOREA_AZURE_CLIENT_SECRET: ${{ secrets.NOREA_AZURE_CLIENT_SECRET }}
         run: ./crea_pacchetto_portatile.ps1
 
+      - name: Build MSIX and winget manifest
+        shell: pwsh
+        env:
+          NOREA_RELEASE_TAG: ${{ steps.rel.outputs.tag }}
+          NOREA_CODESIGN_PFX_BASE64: ${{ secrets.NOREA_CODESIGN_PFX_BASE64 }}
+          NOREA_CODESIGN_PFX_PATH: ${{ secrets.NOREA_CODESIGN_PFX_PATH }}
+          NOREA_CODESIGN_PFX_PASSWORD: ${{ secrets.NOREA_CODESIGN_PFX_PASSWORD }}
+          NOREA_AZURE_SIGNING_ENDPOINT: ${{ secrets.NOREA_AZURE_SIGNING_ENDPOINT }}
+          NOREA_AZURE_SIGNING_ACCOUNT: ${{ secrets.NOREA_AZURE_SIGNING_ACCOUNT }}
+          NOREA_AZURE_SIGNING_PROFILE: ${{ secrets.NOREA_AZURE_SIGNING_PROFILE }}
+          NOREA_AZURE_TENANT_ID: ${{ secrets.NOREA_AZURE_TENANT_ID }}
+          NOREA_AZURE_CLIENT_ID: ${{ secrets.NOREA_AZURE_CLIENT_ID }}
+          NOREA_AZURE_CLIENT_SECRET: ${{ secrets.NOREA_AZURE_CLIENT_SECRET }}
+        run: ./crea_installer.ps1 -PortableDir norea_portable -ZipPath NOREA_Suite_Portable.zip
+
       - name: Calculate Checksums
+        shell: pwsh
         run: |
-          $hash = (Get-FileHash NOREA_Suite_Portable.zip -Algorithm SHA256).Hash
-          Set-Content -Path checksums.txt -Value "SHA256 (NOREA_Suite_Portable.zip) = $hash"
+          $lines = @("SHA256 (NOREA_Suite_Portable.zip) = $((Get-FileHash NOREA_Suite_Portable.zip -Algorithm SHA256).Hash)")
+          foreach ($extra in @("installer_out\NOREA_Suite.msix", "installer_out\NOREA_Suite_unsigned.msix")) {
+            if (Test-Path -LiteralPath $extra) {
+              $leaf = Split-Path $extra -Leaf
+              $lines += "SHA256 ($leaf) = $((Get-FileHash -LiteralPath $extra -Algorithm SHA256).Hash)"
+            }
+          }
+          Set-Content -Path checksums.txt -Value ($lines -join "`n")
           Get-Content checksums.txt
 
       # Le attestazioni Sigstore non sono disponibili sui repository privati di un account
@@ -153,5 +175,8 @@ jobs:
             checksums.txt
             CHANGELOG.md
             release-notes.md
+            installer_out/ChristianRobecchi.NOREA.yaml
+            installer_out/NOREA_Suite.msix
+            installer_out/NOREA_Suite_unsigned.msix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

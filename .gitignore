@@ -28,3 +28,4 @@ analysis/*.json
 *.zip
 test_portable_folder/
 norea_portable/
+installer_out/
