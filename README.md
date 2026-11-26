@@ -131,6 +131,8 @@ dotnet publish NoreaCli\NoreaCli.csproj -c Release -r win-x64 --self-contained f
 
 La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 64 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
 
+Le action usate in CI e nel workflow di release sono quelle che girano su Node.js 24 (`actions/checkout@v5`, `actions/setup-dotnet@v5`, `actions/setup-python@v6`, `actions/upload-artifact@v6`, `actions/attest-build-provenance@v3`, `softprops/action-gh-release@v3`), così GitHub non deve forzare i runtime Node 20. NotepadREA referenzia Scintilla5.NET ma non importa le DLL native `win-x86` e `win-arm64`: in pubblicazione single-file per `win-x64` restano solo `runtimes\win-x64\native\Scintilla.dll` e `Lexilla.dll`, le stesse incorporate nell'eseguibile e riestratte all'avvio se mancano.
+
 ### Benchmark I/O file grandi
 
 Il benchmark misura separatamente hash su buffer/file, lettura+decodifica e codifica+scrittura. Riporta la mediana dei tempi e le allocazioni gestite per operazione; non è un test di regressione prestazionale e i risultati dipendono da disco, runtime e dimensione della cache.

@@ -16,12 +16,22 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
-    <PackageReference Include="Scintilla5.NET" Version="7.1.1" GeneratePathProperty="true" />
+    <!--
+      Il pacchetto copia con un target tutte le RID native (win-x64, win-x86, win-arm64).
+      In pubblicazione single-file per win-x64 l'SDK esclude le altre e avvisa.
+      Escludiamo quel target e le asset native automatiche, e copiamo solo win-x64.
+      L'editor incorpora le stesse DLL e le estrae se mancano (Program.EnsureNativeDependencies).
+    -->
+    <PackageReference Include="Scintilla5.NET" Version="7.1.1" GeneratePathProperty="true">
+      <ExcludeAssets>build;buildTransitive;native</ExcludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="$(PkgScintilla5_NET)\runtimes\win-x64\native\Scintilla.dll" LogicalName="EmbeddedNative.Scintilla.dll" />
     <EmbeddedResource Include="$(PkgScintilla5_NET)\runtimes\win-x64\native\Lexilla.dll" LogicalName="EmbeddedNative.Lexilla.dll" />
+    <Content Include="$(PkgScintilla5_NET)\runtimes\win-x64\native\Scintilla.dll" Link="runtimes\win-x64\native\Scintilla.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <Content Include="$(PkgScintilla5_NET)\runtimes\win-x64\native\Lexilla.dll" Link="runtimes\win-x64\native\Lexilla.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>
