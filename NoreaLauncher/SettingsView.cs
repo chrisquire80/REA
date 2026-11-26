@@ -81,7 +81,7 @@ public sealed class SettingsView : UserControl
             using var fTitle = new Font("Segoe UI", 16f, FontStyle.Bold);
             using var fSub = new Font("Consolas", 8.2f, FontStyle.Regular);
             TextRenderer.DrawText(e.Graphics, "Impostazioni", fTitle, new Point(48, 2), _theme.TextPrimary, TextFormatFlags.NoPadding);
-            string lVer = typeof(SettingsView).Assembly.GetName().Version?.ToString(3) ?? "2.5.0";
+            string lVer = typeof(SettingsView).Assembly.GetName().Version?.ToString(3) ?? "2.6.0";
             TextRenderer.DrawText(e.Graphics, $"NOREA LAUNCHER v{lVer}", fSub, new Point(50, 36), _theme.TextMuted, TextFormatFlags.NoPadding);
         };
         _canvas.Controls.Add(headerBox);

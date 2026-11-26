@@ -18,7 +18,7 @@ public sealed partial class MainForm
             _infoBar.ShowMessage("Verifica disponibilità aggiornamenti su GitHub...", InfoBarControl.BarType.Info, _theme);
         }
 
-        string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.5.0");
+        string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.6.0");
         var release = await CloudUpdateService.CheckForUpdatesAsync(_settings.GitHubRepo, currentVer, _settings.IncludePreReleases);
 
         if (release != null && release.IsUpdateAvailable)

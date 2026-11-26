@@ -252,7 +252,7 @@ static class Program
         return 0;
     }
 
-    static string CliVersion => typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "2.5.0";
+    static string CliVersion => typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "2.6.0";
 
     static void PrintUsage()
     {

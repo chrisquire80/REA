@@ -41,8 +41,27 @@ function Format-Section {
 
 Push-Location $RepoRoot
 try {
-    $tags = @(git tag -l "v*" --sort=v:refname)
+    $tags = @(git tag -l "v*" --sort=v:refname | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($LASTEXITCODE -ne 0) { throw "Impossibile elencare i tag." }
+
+    if (-not [string]::IsNullOrWhiteSpace($Tag)) {
+        if ($tags -notcontains $Tag) {
+            throw "Il tag $Tag non è nel clone. Il checkout della release deve usare fetch-tags: true, altrimenti le note non possono essere delimitate rispetto al tag precedente."
+        }
+        # v2.1.0 è il primo tag della suite. Qualsiasi release successiva, se è
+        # l'unico tag locale, includerebbe tutta la storia al posto del solo intervallo.
+        if ($tags.Count -eq 1 -and $Tag -ne "v2.1.0") {
+            throw "Nel clone c'è solo $Tag. Mancano i tag v* precedenti (serve fetch-tags: true)."
+        }
+        $tagIndex = [array]::IndexOf($tags, $Tag)
+        if ($tagIndex -gt 0) {
+            $previousTag = $tags[$tagIndex - 1]
+            git -C $RepoRoot rev-parse --verify --quiet "refs/tags/$previousTag^{commit}" | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Il tag precedente $previousTag non risolve a un commit. Le note di $Tag non possono essere generate."
+            }
+        }
+    }
 
     $sections = New-Object System.Collections.Generic.List[string]
     $previous = $null
