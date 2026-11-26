@@ -3,7 +3,7 @@
 [![Build & Release](https://github.com/chrisquire80/REA/actions/workflows/release.yml/badge.svg)](https://github.com/chrisquire80/REA/actions/workflows/release.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/xUnit-100%20Passed-brightgreen?logo=xunit)
+![Tests](https://img.shields.io/badge/xUnit-103%20Passed-brightgreen?logo=xunit)
 [![Release](https://img.shields.io/github/v/release/chrisquire80/REA?color=blue&label=Latest%20Release)](https://github.com/chrisquire80/REA/releases)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -37,7 +37,7 @@ Editor di testo e codice sorgente completo, ricostruito da zero a partire dall'a
 Launcher della suite in stile **Master-Detail**, con palette NOREA chiaro/scuro e componenti condivisi.
 * **Layout Master-Detail**: Ricerca rapida, elenco applicazioni, stato e azioni principali coerenti con il sistema di design NOREA.
 * **Sistema di design riutilizzabile**: Token colore, tipografia, spaziatura e controlli per i prossimi programmi NOREA in [docs/NOREA_DESIGN_SYSTEM.md](docs/NOREA_DESIGN_SYSTEM.md).
-* **Telemetria Live dei Processi**: Monitoraggio in tempo reale di RAM (Working Set), tempo di attività (Uptime), thread attivi e PID per ogni applicazione della suite in esecuzione.
+* **Telemetria Live dei Processi**: Monitoraggio in tempo reale di RAM (Working Set), tempo di attività (Uptime), thread attivi e PID per ogni applicazione della suite in esecuzione. I numeri restano sul PC. Cosa viene letto, l'unica richiesta di rete (GitHub Releases) e come spegnere le metriche sono in [docs/TELEMETRIA.md](docs/TELEMETRIA.md).
 * **Integrazione CLI nel PATH di Windows (1-Click)**: Configura con un clic `%LocalAppData%\Programs\NotepadREA` e `NOREA` nel `PATH` utente con broadcast `WM_SETTINGCHANGE`, permettendo di avviare `notepadrea` o `norea` da qualsiasi terminale.
 * **Client Aggiornamenti Cloud (GitHub Releases)**: Verifica automatica all'avvio o manuale delle release pubblicate su GitHub, con download streaming e aggiornamento a caldo.
 * **Cronologia File Recenti**: Accesso rapido ai file aperti di recente dall'editor direttamente dal menu contestuale del launcher.
@@ -79,7 +79,7 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
 ### 6. [NOREA.Tests](NOREA.Tests/NOREA.Tests.csproj) e [NOREA.Benchmarks](NOREA.Benchmarks/NOREA.Benchmarks.csproj)
-Suite di test automatizzati con **xUnit** (100 test):
+Suite di test automatizzati con **xUnit** (103 test):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
 * Test per algoritmi di diff `DiffEngine` e parser unificato `GitGutter`.
@@ -88,7 +88,7 @@ Suite di test automatizzati con **xUnit** (100 test):
 * Test di integrazione del server MCP JSON-RPC su stream, modifiche ai file aperti e conflitti di salvataggio.
 * Test di utilità del launcher `LauncherUtil` (split nomi REA, semantica delle versioni `CompareVersions`, anonimizzazione percorsi, telemetria).
 * Test di `EverythingREA.Core` (sintassi di ricerca, cache isolata) e del comando `norea search`.
-* Test di `WinSCPREA.Core` e dell'harness `norea winscp`. L'harness Python in `WinSCPREA/agent-harness` ha i propri test pytest, separati dai 100 test xUnit.
+* Test di `WinSCPREA.Core` e dell'harness `norea winscp`. L'harness Python in `WinSCPREA/agent-harness` ha i propri test pytest, separati dai 103 test xUnit.
 * Test della logica estratta dalle finestre: apertura e codifica (`EditorFileSession`), connessione SFTP e chiave host, opzioni di ricerca di EverythingREA, visibilità del catalogo e decisione di aggiornamento.
 
 ---
@@ -112,7 +112,7 @@ La versione della suite è **2.5.0**, definita in [Directory.Build.props](Direct
 # Ripristino e compilazione soluzione
 dotnet build NOREA.slnx -c Release
 
-# Esecuzione test unitari (100 test)
+# Esecuzione test unitari (103 test)
 dotnet test NOREA.Tests\NOREA.Tests.csproj
 
 # Generazione automatica pacchetto portatile
@@ -130,7 +130,7 @@ dotnet publish NoreaCli\NoreaCli.csproj -c Release -r win-x64 --self-contained f
 .\installa_associazioni.ps1
 ```
 
-La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 100 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
+La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 103 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
 
 Le action usate in CI e nel workflow di release sono quelle che girano su Node.js 24 (`actions/checkout@v5`, `actions/setup-dotnet@v5`, `actions/setup-python@v6`, `actions/upload-artifact@v6`, `actions/attest-build-provenance@v3`, `softprops/action-gh-release@v3`), così GitHub non deve forzare i runtime Node 20. NotepadREA referenzia Scintilla5.NET ma non importa le DLL native `win-x86` e `win-arm64`: in pubblicazione single-file per `win-x64` restano solo `runtimes\win-x64\native\Scintilla.dll` e `Lexilla.dll`, le stesse incorporate nell'eseguibile e riestratte all'avvio se mancano.
 

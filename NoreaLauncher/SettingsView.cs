@@ -23,6 +23,7 @@ public sealed class SettingsView : UserControl
     readonly CheckBox _chkHidePlanned = new() { AutoSize = true, Text = "Nascondi applicazioni pianificate non compilate", UseMnemonic = false };
     readonly CheckBox _chkTray = new() { AutoSize = true, Text = "Riduci nella barra delle applicazioni alla chiusura", UseMnemonic = false };
     readonly CheckBox _chkLogin = new() { AutoSize = true, Text = "Avvia NOREA Launcher all'accesso di Windows", UseMnemonic = false };
+    readonly CheckBox _chkTelemetry = new() { AutoSize = true, Text = "Mostra RAM, tempo di attività e thread (restano su questo PC)", UseMnemonic = false };
 
     readonly Button _btnSys = new(), _btnDark = new(), _btnLight = new();
     readonly Button _btnBrowse = new(), _btnDefaultFolder = new();
@@ -144,7 +145,14 @@ public sealed class SettingsView : UserControl
         SetupOutlineButton(btnTestFlyout, "PROVA FLYOUT NOTIFICA", 168, 118, 200, () => TestFlyoutRequested?.Invoke(this, EventArgs.Empty));
         cardCloud.Controls.Add(btnTestFlyout);
 
-        var cardAi = MakeCard("INTEGRAZIONE AI (CLAUDE & ANTIGRAVITY)", leftX, 582, colW, 114);
+        var cardPrivacy = MakeCard("PRIVACY E TELEMETRIA", leftX, 582, colW, 128);
+        cardPrivacy.Controls.Add(MakeMutedLabel("Nessun dato di utilizzo viene inviato a un server.", 18, 40));
+        _chkTelemetry.Location = new Point(18, 64);
+        _chkTelemetry.CheckedChanged += (_, _) => SyncBooleans();
+        cardPrivacy.Controls.Add(_chkTelemetry);
+        cardPrivacy.Controls.Add(MakeMutedLabel("L'unica richiesta di rete è il controllo aggiornamenti, qui sopra.", 18, 94));
+
+        var cardAi = MakeCard("INTEGRAZIONE AI (CLAUDE & ANTIGRAVITY)", leftX, 724, colW, 114);
         cardAi.Controls.Add(MakeMutedLabel("Collega NotepadREA e NoreaLauncher come strumenti per assistenti AI", 18, 38));
         var btnSetupAi = new Button();
         SetupPrimaryButton(btnSetupAi, "COLLEGA AD AI", 18, 64, 160, () => SetupAiRequested?.Invoke(this, EventArgs.Empty));
@@ -221,7 +229,7 @@ public sealed class SettingsView : UserControl
         });
         cardCommunity.Controls.AddRange([_btnAddApp, _btnOpenWs, _btnEditCatalog]);
 
-        _canvas.Size = new Size(1000, 720);
+        _canvas.Size = new Size(1000, 860);
         _scrollHost.Controls.Add(_canvas);
         _scrollHost.Resize += (_, _) =>
         {
@@ -358,6 +366,7 @@ public sealed class SettingsView : UserControl
         _chkHidePlanned.Checked = _settings.HidePlannedApps;
         _chkTray.Checked = _settings.KeepInTray;
         _chkLogin.Checked = _settings.StartOnLogin;
+        _chkTelemetry.Checked = _settings.CollectProcessTelemetry;
         _loading = false;
         UpdateAppearanceButtons();
     }
@@ -370,6 +379,8 @@ public sealed class SettingsView : UserControl
         _settings.HidePlannedApps = _chkHidePlanned.Checked;
         _settings.KeepInTray = _chkTray.Checked;
         _settings.StartOnLogin = _chkLogin.Checked;
+        _settings.CollectProcessTelemetry = _chkTelemetry.Checked;
+        ProcessTelemetryGate.Apply(_settings);
         _settings.Save();
     }
 
@@ -438,7 +449,7 @@ public sealed class SettingsView : UserControl
             cb.ForeColor = t.TextPrimary;
         }
 
-        foreach (var chk in new[] { _chkAutoInstall, _chkNotify, _chkHidePlanned, _chkTray, _chkLogin })
+        foreach (var chk in new[] { _chkAutoInstall, _chkNotify, _chkHidePlanned, _chkTray, _chkLogin, _chkTelemetry })
         {
             chk.ForeColor = t.TextPrimary;
             chk.BackColor = Color.Transparent;

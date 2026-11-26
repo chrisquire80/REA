@@ -100,6 +100,12 @@ public sealed class LauncherSettings
     public bool IncludePreReleases { get; set; } = true;
     public string GitHubRepo { get; set; } = "chrisquire80/REA";
     public bool CheckCloudUpdatesOnStartup { get; set; } = true;
+
+    /// <summary>
+    /// RAM, uptime e thread delle app avviate, mostrati solo in questa sessione.
+    /// Resta attivo: la scheda c'è già e i numeri non lasciano il PC.
+    /// </summary>
+    public bool CollectProcessTelemetry { get; set; } = true;
     public DateTime? LastCloudCheckUtc { get; set; }
     public string Appearance { get; set; } = "Dark";
     public bool HidePlannedApps { get; set; } = true;
