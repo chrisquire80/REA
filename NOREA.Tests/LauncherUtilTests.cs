@@ -87,4 +87,22 @@ public class LauncherUtilTests
         var telem = LauncherUtil.GetProcessTelemetry(-1);
         Assert.Null(telem);
     }
+
+    [Fact]
+    public void GetProcessTelemetry_OptOut_DoesNotReadTheProcess()
+    {
+        bool previous = ProcessTelemetryGate.Enabled;
+        try
+        {
+            ProcessTelemetryGate.Enabled = false;
+            Assert.Null(LauncherUtil.GetProcessTelemetry(Environment.ProcessId));
+
+            ProcessTelemetryGate.Apply(new LauncherSettings { CollectProcessTelemetry = true });
+            Assert.NotNull(LauncherUtil.GetProcessTelemetry(Environment.ProcessId));
+        }
+        finally
+        {
+            ProcessTelemetryGate.Enabled = previous;
+        }
+    }
 }

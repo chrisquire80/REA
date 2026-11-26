@@ -286,8 +286,7 @@ internal sealed class MainForm : Form
 
         if (accepted)
         {
-            var requestKey = WinScpSettings.HostKeyId(host, CurrentPortFor(host));
-            _settings.KnownHosts[requestKey] = fingerprint;
+            HostKeyTrust.Remember(_settings.KnownHosts, host, CurrentPortFor(host), fingerprint);
             _settings.Save();
         }
         return accepted;
@@ -304,12 +303,10 @@ internal sealed class MainForm : Form
 
     private bool AskToTrustHostKey(string host, string fingerprint)
     {
-        string key = WinScpSettings.HostKeyId(host, CurrentPortFor(host));
-        if (_settings.KnownHosts.TryGetValue(key, out var known) && known == fingerprint) return true;
+        var decision = HostKeyTrust.Evaluate(_settings.KnownHosts, host, CurrentPortFor(host), fingerprint);
+        if (decision.IsTrusted) return true;
 
-        string message = known is null
-            ? $"Il server {host} presenta questa chiave host SHA-256:\n\nSHA256:{fingerprint}\n\nAccetti la chiave e ti fidi di questo server?"
-            : $"La chiave host di {host} è cambiata.\n\nRegistrata: SHA256:{known}\nRicevuta:   SHA256:{fingerprint}\n\nConferma solo se hai verificato la nuova impronta con l'amministratore del server.";
+        string message = HostKeyTrust.BuildPrompt(host, fingerprint, decision);
         return MessageBox.Show(this, message, "Verifica chiave host SFTP", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
     }
 

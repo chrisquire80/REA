@@ -76,13 +76,18 @@ jobs:
           Write-Host "Tag $env:RELEASE_TAG -> $sha"
 
       - name: Checkout release sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.rel.outputs.tag }}
           fetch-depth: 0
 
+      - name: Generate changelog
+        shell: pwsh
+        run: |
+          ./tools/New-ReleaseNotes.ps1 -Tag ${{ steps.rel.outputs.tag }} -NotesPath release-notes.md
+
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -93,12 +98,45 @@ jobs:
         run: dotnet test NOREA.Tests/NOREA.Tests.csproj --no-restore --verbosity normal
 
       - name: Build Portable Package
-        run: pwsh ./crea_pacchetto_portatile.ps1
+        shell: pwsh
+        env:
+          NOREA_CODESIGN_PFX_BASE64: ${{ secrets.NOREA_CODESIGN_PFX_BASE64 }}
+          NOREA_CODESIGN_PFX_PATH: ${{ secrets.NOREA_CODESIGN_PFX_PATH }}
+          NOREA_CODESIGN_PFX_PASSWORD: ${{ secrets.NOREA_CODESIGN_PFX_PASSWORD }}
+          NOREA_AZURE_SIGNING_ENDPOINT: ${{ secrets.NOREA_AZURE_SIGNING_ENDPOINT }}
+          NOREA_AZURE_SIGNING_ACCOUNT: ${{ secrets.NOREA_AZURE_SIGNING_ACCOUNT }}
+          NOREA_AZURE_SIGNING_PROFILE: ${{ secrets.NOREA_AZURE_SIGNING_PROFILE }}
+          NOREA_AZURE_TENANT_ID: ${{ secrets.NOREA_AZURE_TENANT_ID }}
+          NOREA_AZURE_CLIENT_ID: ${{ secrets.NOREA_AZURE_CLIENT_ID }}
+          NOREA_AZURE_CLIENT_SECRET: ${{ secrets.NOREA_AZURE_CLIENT_SECRET }}
+        run: ./crea_pacchetto_portatile.ps1
+
+      - name: Build MSIX and winget manifest
+        shell: pwsh
+        env:
+          NOREA_RELEASE_TAG: ${{ steps.rel.outputs.tag }}
+          NOREA_CODESIGN_PFX_BASE64: ${{ secrets.NOREA_CODESIGN_PFX_BASE64 }}
+          NOREA_CODESIGN_PFX_PATH: ${{ secrets.NOREA_CODESIGN_PFX_PATH }}
+          NOREA_CODESIGN_PFX_PASSWORD: ${{ secrets.NOREA_CODESIGN_PFX_PASSWORD }}
+          NOREA_AZURE_SIGNING_ENDPOINT: ${{ secrets.NOREA_AZURE_SIGNING_ENDPOINT }}
+          NOREA_AZURE_SIGNING_ACCOUNT: ${{ secrets.NOREA_AZURE_SIGNING_ACCOUNT }}
+          NOREA_AZURE_SIGNING_PROFILE: ${{ secrets.NOREA_AZURE_SIGNING_PROFILE }}
+          NOREA_AZURE_TENANT_ID: ${{ secrets.NOREA_AZURE_TENANT_ID }}
+          NOREA_AZURE_CLIENT_ID: ${{ secrets.NOREA_AZURE_CLIENT_ID }}
+          NOREA_AZURE_CLIENT_SECRET: ${{ secrets.NOREA_AZURE_CLIENT_SECRET }}
+        run: ./crea_installer.ps1 -PortableDir norea_portable -ZipPath NOREA_Suite_Portable.zip
 
       - name: Calculate Checksums
+        shell: pwsh
         run: |
-          $hash = (Get-FileHash NOREA_Suite_Portable.zip -Algorithm SHA256).Hash
-          Set-Content -Path checksums.txt -Value "SHA256 (NOREA_Suite_Portable.zip) = $hash"
+          $lines = @("SHA256 (NOREA_Suite_Portable.zip) = $((Get-FileHash NOREA_Suite_Portable.zip -Algorithm SHA256).Hash)")
+          foreach ($extra in @("installer_out\NOREA_Suite.msix", "installer_out\NOREA_Suite_unsigned.msix")) {
+            if (Test-Path -LiteralPath $extra) {
+              $leaf = Split-Path $extra -Leaf
+              $lines += "SHA256 ($leaf) = $((Get-FileHash -LiteralPath $extra -Algorithm SHA256).Hash)"
+            }
+          }
+          Set-Content -Path checksums.txt -Value ($lines -join "`n")
           Get-Content checksums.txt
 
       # Le attestazioni Sigstore non sono disponibili sui repository privati di un account
@@ -107,7 +145,7 @@ jobs:
       # calcolato da GitHub quando l'asset viene caricato. checksums.txt è sempre allegato.
       - name: Attest release artifacts
         if: github.event.repository.visibility != 'private' || github.event.repository.owner.type == 'Organization'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v3
         with:
           subject-path: |
             NOREA_Suite_Portable.zip
@@ -122,7 +160,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.rel.outputs.tag }}
           target_commitish: ${{ steps.tag.outputs.sha }}
@@ -130,9 +168,15 @@ jobs:
           draft: false
           prerelease: false
           make_latest: ${{ (github.event_name != 'workflow_dispatch' || inputs.mark_as_latest) && 'true' || 'false' }}
-          generate_release_notes: true
+          generate_release_notes: false
+          body_path: release-notes.md
           files: |
             NOREA_Suite_Portable.zip
             checksums.txt
+            CHANGELOG.md
+            release-notes.md
+            installer_out/ChristianRobecchi.NOREA.yaml
+            installer_out/NOREA_Suite.msix
+            installer_out/NOREA_Suite_unsigned.msix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

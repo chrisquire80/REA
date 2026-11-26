@@ -289,8 +289,8 @@ public static class McpServer
     {
         string app = args["appName"]?.GetValue<string>() ?? throw new ArgumentException("appName mancante");
         string msg = args["message"]?.GetValue<string>() ?? throw new ArgumentException("message mancante");
-        string oldVer = args["oldVersion"]?.GetValue<string>() ?? "v2.1.0";
-        string newVer = args["newVersion"]?.GetValue<string>() ?? "v2.2.0";
+        string oldVer = args["oldVersion"]?.GetValue<string>() ?? "";
+        string newVer = args["newVersion"]?.GetValue<string>() ?? "";
 
         bool ok = NoreaBridge.NotifyLauncher(app, msg, oldVer, newVer);
         if (!ok) throw new InvalidOperationException("Impossibile mostrare la notifica desktop");

@@ -59,7 +59,7 @@ public static partial class CatalogService
         foreach (var app in list)
             ResolveAppState(app, ws, settings);
 
-        list.RemoveAll(a => IsExcludedSuiteComponent(a.Id) || a.IsPlanned || (!a.IsInstalled && !a.HasDistBuild && !a.HasProject));
+        list.RemoveAll(a => !CatalogPolicy.ShouldShow(a.Id, a.IsPlanned, a.IsInstalled, a.HasDistBuild, a.HasProject));
         RefreshRunningProcesses(list);
 
         return list;

@@ -53,8 +53,8 @@ static class Program
         {
             string appName = args.Length > 1 ? args[1] : "NotepadREA";
             string status = args.Length > 2 ? args[2] : "Task completato con successo!";
-            string oldVer = args.Length > 3 ? args[3] : "v2.1.0";
-            string newVer = args.Length > 4 ? args[4] : "v2.2.0";
+            string oldVer = args.Length > 3 ? args[3] : "";
+            string newVer = args.Length > 4 ? args[4] : "";
 
             ApplicationConfiguration.Initialize();
             var flyout = new UpdateNotificationFlyout(

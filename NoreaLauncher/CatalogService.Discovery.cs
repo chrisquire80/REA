@@ -10,15 +10,7 @@ namespace NoreaLauncher;
 
 public static partial class CatalogService
 {
-    static bool IsExcludedSuiteComponent(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return true;
-        string lower = name.Trim().ToLowerInvariant();
-        return lower is "norea" or "noreacli" or "norea-cli" or "norealauncher" or "noreamcp" or "noreadesign"
-            || lower.EndsWith("tests") || lower.EndsWith(".tests")
-            || lower.EndsWith(".core")
-            || lower.Contains("benchmark") || lower.Contains("benchmarks");
-    }
+    static bool IsExcludedSuiteComponent(string name) => CatalogPolicy.IsExcludedSuiteComponent(name);
 
     static bool IsExecutableProject(string csprojPath)
     {

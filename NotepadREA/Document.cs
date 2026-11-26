@@ -346,9 +346,8 @@ public sealed class Document : UserControl
 
     static (int ByteLength, bool Binary, string Text, FileEncoding Encoding, bool MixedEol, Eol Eol) DecodeFile(byte[] bytes)
     {
-        bool binary = TextCodec.LooksBinary(bytes);
-        (string text, FileEncoding encoding) = TextCodec.Decode(bytes);
-        return (bytes.Length, binary, text, encoding, TextCodec.HasMixedEol(text), TextCodec.DetectEol(text));
+        var decoded = EditorFileSession.Decode(bytes);
+        return (decoded.ByteLength, decoded.Binary, decoded.Text, decoded.Encoding, decoded.MixedEol, decoded.Eol);
     }
 
     void LoadBytes(string path, (int ByteLength, bool Binary, string Text, FileEncoding Encoding, bool MixedEol, Eol Eol) decoded,
@@ -382,15 +381,7 @@ public sealed class Document : UserControl
     {
         if (FilePath is null || MissingOnDisk) return;
         var bytes = File.ReadAllBytes(FilePath);
-        string text = enc switch
-        {
-            FileEncoding.Ansi => TextCodec.SystemAnsi.GetString(bytes),
-            FileEncoding.Utf8 => new System.Text.UTF8Encoding(false).GetString(bytes),
-            FileEncoding.Utf8Bom => new System.Text.UTF8Encoding(false).GetString(bytes.Length >= 3 ? bytes[3..] : bytes),
-            FileEncoding.Utf16Le or FileEncoding.Utf16LeNoBom => System.Text.Encoding.Unicode.GetString(bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE ? bytes[2..] : bytes),
-            FileEncoding.Utf16Be or FileEncoding.Utf16BeNoBom => System.Text.Encoding.BigEndianUnicode.GetString(bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF ? bytes[2..] : bytes),
-            _ => new System.Text.UTF8Encoding(false).GetString(bytes),
-        };
+        string text = EditorFileSession.Reinterpret(bytes, enc);
 
         Editor.Text = text;
         Encoding = enc;
@@ -437,11 +428,11 @@ public sealed class Document : UserControl
         string fullPath = Path.GetFullPath(path);
         bool sameTrackedFile = FilePath != null &&
             string.Equals(fullPath, FilePath, StringComparison.OrdinalIgnoreCase);
-        if (sameTrackedFile && !overwriteExternalChanges)
-        {
-            if (!File.Exists(fullPath) || _diskSnapshot is not { } snapshot || snapshot.HasChanged(fullPath))
-                throw new ExternalFileChangedException(fullPath);
-        }
+        bool fileExists = File.Exists(fullPath);
+        bool hasSnapshot = _diskSnapshot is not null;
+        bool snapshotChanged = fileExists && _diskSnapshot is { } snapshot && snapshot.HasChanged(fullPath);
+        if (EditorFileSession.ShouldRejectSave(sameTrackedFile, overwriteExternalChanges, fileExists, hasSnapshot, snapshotChanged))
+            throw new ExternalFileChangedException(fullPath);
 
         var bytes = TextCodec.Encode(Editor.Text, Encoding);
         string? dir = Path.GetDirectoryName(fullPath);

@@ -76,8 +76,10 @@ public sealed class AppEntry
     [JsonIgnore] public bool IsCanary => Version.Contains('-') || Version.StartsWith("v0.", StringComparison.OrdinalIgnoreCase);
     [JsonIgnore] public bool HasUpdate =>
         IsInstalled && HasDistBuild &&
-        (LauncherUtil.CompareVersions(Version, "v0.0.0") >= 0 &&
-         File.GetLastWriteTimeUtc(DistExePath!) > File.GetLastWriteTimeUtc(InstalledExePath!).AddSeconds(5));
+        CatalogPolicy.HasDistUpdate(
+            Version,
+            File.GetLastWriteTimeUtc(DistExePath!),
+            File.GetLastWriteTimeUtc(InstalledExePath!));
 
     [JsonIgnore] public bool IsRunning { get; set; }
     [JsonIgnore] public int? RunningPid { get; set; }
@@ -98,6 +100,12 @@ public sealed class LauncherSettings
     public bool IncludePreReleases { get; set; } = true;
     public string GitHubRepo { get; set; } = "chrisquire80/REA";
     public bool CheckCloudUpdatesOnStartup { get; set; } = true;
+
+    /// <summary>
+    /// RAM, uptime e thread delle app avviate, mostrati solo in questa sessione.
+    /// Resta attivo: la scheda c'è già e i numeri non lasciano il PC.
+    /// </summary>
+    public bool CollectProcessTelemetry { get; set; } = true;
     public DateTime? LastCloudCheckUtc { get; set; }
     public string Appearance { get; set; } = "Dark";
     public bool HidePlannedApps { get; set; } = true;

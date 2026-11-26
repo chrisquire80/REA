@@ -49,10 +49,22 @@ public sealed class UpdateNotificationFlyout : Form
         Color? accentColor = null)
     {
         _appName = appName;
-        _oldVersion = string.IsNullOrWhiteSpace(oldVersion) ? "v2.1.0" : oldVersion;
-        _newVersion = string.IsNullOrWhiteSpace(newVersion) ? "v2.2.0" : newVersion;
         _author = author;
         _changelogUrl = changelogUrl;
+        string loadedNotes = ReleaseNotes.Load();
+        var published = ReleaseNotes.LatestPair(loadedNotes);
+        if (string.IsNullOrWhiteSpace(changelogText))
+        {
+            string forVersion = ReleaseNotes.ForVersion(loadedNotes, newVersion);
+            changelogText = string.IsNullOrWhiteSpace(forVersion) ? published.Body : forVersion;
+        }
+        if (string.IsNullOrWhiteSpace(oldVersion))
+            oldVersion = string.IsNullOrWhiteSpace(published.Previous) ? published.Current : published.Previous;
+        if (string.IsNullOrWhiteSpace(newVersion))
+            newVersion = string.IsNullOrWhiteSpace(published.Current) ? "versione corrente" : published.Current;
+        if (string.IsNullOrWhiteSpace(oldVersion)) oldVersion = "versione precedente";
+        _oldVersion = oldVersion;
+        _newVersion = newVersion;
         _changelogText = changelogText;
         _appIcon = appIcon;
         _accentColor = accentColor ?? Color.FromArgb(197, 22, 45); // Rosso ArtCraft / REA

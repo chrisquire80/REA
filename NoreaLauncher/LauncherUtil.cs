@@ -162,6 +162,7 @@ public static class LauncherUtil
 
     public static (double RamMb, TimeSpan Uptime, int ThreadCount)? GetProcessTelemetry(int? pid)
     {
+        if (!ProcessTelemetryGate.Enabled) return null;
         if (pid is null or <= 0) return null;
         try
         {

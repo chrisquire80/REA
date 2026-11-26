@@ -24,6 +24,27 @@ public class LauncherSettingsTests
             Assert.Equal("Light", loaded.Appearance);
             Assert.Equal("owner/project", loaded.GitHubRepo);
             Assert.Equal(root, loaded.WorkspaceDir);
+            Assert.True(loaded.CollectProcessTelemetry);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Settings_Load_MissingTelemetryFlag_StaysEnabledAndExplicitFalseIsKept()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"norea-settings-test-{Guid.NewGuid():N}");
+        string path = Path.Combine(root, "launcher_settings.json");
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(path, """{"Appearance":"Dark"}""");
+            Assert.True(LauncherSettings.Load(path).CollectProcessTelemetry);
+
+            File.WriteAllText(path, """{"CollectProcessTelemetry":false}""");
+            Assert.False(LauncherSettings.Load(path).CollectProcessTelemetry);
         }
         finally
         {

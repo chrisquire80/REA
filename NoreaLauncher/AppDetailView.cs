@@ -258,8 +258,8 @@ public sealed class AppDetailView : Panel
         int left = 28 + scrollX;
         int contentW = Math.Max(1, _body.ClientSize.Width - 56);
 
-        // Telemetria Live se in esecuzione
-        if (_app.IsRunning)
+        // Metriche di processo, solo se l'utente non le ha disattivate.
+        if (_app.IsRunning && ProcessTelemetryGate.Enabled)
         {
             var telem = LauncherUtil.GetProcessTelemetry(_app.RunningPid);
             if (telem.HasValue)
@@ -279,6 +279,11 @@ public sealed class AppDetailView : Panel
 
                 y += 76;
             }
+        }
+        else if (_app.IsRunning)
+        {
+            TextRenderer.DrawText(g, "IN ESECUZIONE", MonoSmallFont, new Point(left, y), _theme.StatusGreen);
+            y += 28;
         }
 
         // 1. Descrizione

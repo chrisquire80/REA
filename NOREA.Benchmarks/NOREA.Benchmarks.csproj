@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NotepadREA\NotepadREA.csproj" />
+    <ProjectReference Include="..\EverythingREA.Core\EverythingREA.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -71,6 +71,7 @@ public sealed partial class MainForm : Form
         }
         if (_settings.Maximized) WindowState = FormWindowState.Maximized;
 
+        ProcessTelemetryGate.Apply(_settings);
         _settingsView = new SettingsView(_settings) { Visible = false };
         _settingsView.DoneRequested += (_, _) => ToggleSettings(false);
         _settingsView.QuitRequested += (_, _) => QuitApplication();
