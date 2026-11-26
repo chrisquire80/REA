@@ -3,7 +3,7 @@
 [![Build & Release](https://github.com/chrisquire80/REA/actions/workflows/release.yml/badge.svg)](https://github.com/chrisquire80/REA/actions/workflows/release.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/xUnit-106%20Passed-brightgreen?logo=xunit)
+![Tests](https://img.shields.io/badge/xUnit-105%20Passed-brightgreen?logo=xunit)
 [![Release](https://img.shields.io/github/v/release/chrisquire80/REA?color=blue&label=Latest%20Release)](https://github.com/chrisquire80/REA/releases)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -79,7 +79,7 @@ Interfaccia a riga di comando universale e **Server MCP (Model Context Protocol)
   * `norea_list_apps` & `norea_launch_app`: ispezione e controllo dei processi della suite.
 
 ### 6. [NOREA.Tests](NOREA.Tests/NOREA.Tests.csproj) e [NOREA.Benchmarks](NOREA.Benchmarks/NOREA.Benchmarks.csproj)
-Suite di test automatizzati con **xUnit** (106 test):
+Suite di test automatizzati con **xUnit** (105 test):
 * Test di codifica e decodifica `TextCodec` (UTF-8, UTF-16, BOM, euristica binaria, EOL misti e payload da 16 MiB).
 * Test per `TextTransformTools` (JSON, XML, Base64, URL, ordinamento, rimozione duplicati).
 * Test per algoritmi di diff `DiffEngine` e parser unificato `GitGutter`.
@@ -88,7 +88,7 @@ Suite di test automatizzati con **xUnit** (106 test):
 * Test di integrazione del server MCP JSON-RPC su stream, modifiche ai file aperti e conflitti di salvataggio.
 * Test di utilità del launcher `LauncherUtil` (split nomi REA, semantica delle versioni `CompareVersions`, anonimizzazione percorsi, telemetria).
 * Test di `EverythingREA.Core` (sintassi di ricerca, cache isolata) e del comando `norea search`.
-* Test di `WinSCPREA.Core` e dell'harness `norea winscp`. L'harness Python in `WinSCPREA/agent-harness` ha i propri test pytest, separati dai 106 test xUnit.
+* Test di `WinSCPREA.Core` e dell'harness `norea winscp`. L'harness Python in `WinSCPREA/agent-harness` ha i propri test pytest, separati dai 105 test xUnit.
 * Test della logica estratta dalle finestre: apertura e codifica (`EditorFileSession`), connessione SFTP e chiave host, opzioni di ricerca di EverythingREA, visibilità del catalogo e decisione di aggiornamento.
 
 ---
@@ -112,11 +112,13 @@ La versione della suite è **2.5.0**, definita in [Directory.Build.props](Direct
 # Ripristino e compilazione soluzione
 dotnet build NOREA.slnx -c Release
 
-# Esecuzione test unitari (106 test)
+# Esecuzione test unitari (105 test)
 dotnet test NOREA.Tests\NOREA.Tests.csproj
 
 # Generazione automatica pacchetto portatile
 .\crea_pacchetto_portatile.ps1
+
+# Installazione per l'utente, MSIX e manifest winget: docs/INSTALLAZIONE.md
 
 # Pubblicazione manuale binari ad alte prestazioni in dist\
 dotnet publish NotepadREA\NotepadREA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o dist
@@ -130,7 +132,7 @@ dotnet publish NoreaCli\NoreaCli.csproj -c Release -r win-x64 --self-contained f
 .\installa_associazioni.ps1
 ```
 
-La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 106 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
+La CI (`windows-latest`) compila la soluzione con zero warning attesi, esegue i 105 test xUnit raccogliendo la copertura Coverlet (artefatto `coverage`), esegue `pytest` in `WinSCPREA/agent-harness` e, sulle pull request e su `main`, lancia `crea_pacchetto_portatile.ps1` controllando che lo zip contenga gli eseguibili della suite.
 
 Le action usate in CI e nel workflow di release sono quelle che girano su Node.js 24 (`actions/checkout@v5`, `actions/setup-dotnet@v5`, `actions/setup-python@v6`, `actions/upload-artifact@v6`, `actions/attest-build-provenance@v3`, `softprops/action-gh-release@v3`), così GitHub non deve forzare i runtime Node 20. NotepadREA referenzia Scintilla5.NET ma non importa le DLL native `win-x86` e `win-arm64`: in pubblicazione single-file per `win-x64` restano solo `runtimes\win-x64\native\Scintilla.dll` e `Lexilla.dll`, le stesse incorporate nell'eseguibile e riestratte all'avvio se mancano.
 
@@ -141,7 +143,12 @@ Il benchmark misura separatamente hash su buffer/file, lettura+decodifica e codi
 ```powershell
 # Usa 1, 16 e 64 MiB con 3 iterazioni; personalizzabile con dimensioni e iterazioni
 dotnet run --project NOREA.Benchmarks\NOREA.Benchmarks.csproj -c Release -- 1,16,64 3
+
+# Indice e ricerca EverythingREA su un albero sintetico (vedi docs/PRESTAZIONI_EVERYTHING.md)
+dotnet run --project NOREA.Benchmarks\NOREA.Benchmarks.csproj -c Release -- everything 20000 3
 ```
+
+La frase «sotto i 400 ms» nel sommario in alto riguarda l'avvio della suite, non l'indice. Su un albero sintetico di 20 000 file la mediana misurata dell'indice è stata circa 62 ms e quella della ricerca circa 5 ms (dettagli e limiti in [docs/PRESTAZIONI_EVERYTHING.md](docs/PRESTAZIONI_EVERYTHING.md)). Il workflow `benchmarks.yml` ripete una prova più piccola su `windows-latest`, pubblica il CSV e fallisce solo se i tempi superano un tetto largo.
 
 ### Verifica provenienza del pacchetto di release
 
@@ -151,7 +158,7 @@ l'asset GitHub non espone un digest `sha256:` di 64 cifre esadecimali, e confron
 quel digest con l'hash del file scaricato. GitHub calcola il digest al caricamento
 dell'asset: non dipende dall'attestazione Sigstore.
 
-La firma Authenticode è opzionale. Senza i segreti descritti in [docs/FIRMA_AUTHENTICODE.md](docs/FIRMA_AUTHENTICODE.md) il pacchetto resta non firmato e il workflow non cambia. Con un PFX o con Azure Artifact Signing, gli eseguibili nello zip vengono firmati prima della compressione.
+La firma Authenticode è opzionale. Senza i segreti descritti in [docs/FIRMA_AUTHENTICODE.md](docs/FIRMA_AUTHENTICODE.md) il pacchetto resta non firmato e il workflow non cambia. Con un PFX o con Azure Artifact Signing, gli eseguibili nello zip vengono firmati prima della compressione. Oltre allo zip, la release allega un manifest winget e, se `makeappx` è disponibile, un MSIX (firmato solo con gli stessi segreti, altrimenti `NOREA_Suite_unsigned.msix`). Dettagli in [docs/INSTALLAZIONE.md](docs/INSTALLAZIONE.md).
 
 L'attestazione di provenienza (`actions/attest-build-provenance`) viene eseguita solo
 quando il repository è pubblico oppure appartiene a un'organizzazione. Sui repository

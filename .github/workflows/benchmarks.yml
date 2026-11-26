@@ -1,0 +1,47 @@
+name: Benchmarks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  everything:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      # 2000 file, 2 iterazioni. Le soglie sono un tetto largo, non il risultato atteso:
+      # una misura locale su 20 000 file sta molto sotto. Il job fallisce solo se l'indice
+      # o la ricerca escono da quel tetto.
+      - name: Index and search a synthetic tree
+        shell: pwsh
+        run: dotnet run --project NOREA.Benchmarks/NOREA.Benchmarks.csproj -c Release -- everything 2000 2 4000 800
+
+      - name: Publish the numbers
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path everything-benchmark.csv) {
+            Get-Content everything-benchmark.csv | ForEach-Object { Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $_ }
+          } else {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "everything-benchmark.csv non prodotto."
+          }
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: everything-benchmark
+          path: everything-benchmark.csv
+          if-no-files-found: warn
