@@ -118,7 +118,16 @@ public sealed class SettingsView : UserControl
 
         var repoBox = new Panel { Location = new Point(18, 56), Size = new Size(colW - 36, 28), Padding = new Padding(6, 4, 6, 4) };
         var tbRepo = new TextBox { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, Text = _settings.GitHubRepo, Font = new Font("Consolas", 9.2f) };
-        tbRepo.TextChanged += (_, _) => { _settings.GitHubRepo = tbRepo.Text.Trim(); _settings.Save(); };
+        tbRepo.TextChanged += (_, _) =>
+        {
+            if (LauncherSettings.IsRetiredGitHubRepo(tbRepo.Text))
+            {
+                tbRepo.Text = LauncherSettings.DefaultGitHubRepo;
+                return;
+            }
+            _settings.GitHubRepo = tbRepo.Text.Trim();
+            _settings.Save();
+        };
         repoBox.Controls.Add(tbRepo);
         repoBox.Paint += (_, e) =>
         {

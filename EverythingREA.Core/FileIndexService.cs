@@ -58,8 +58,9 @@ public sealed class FileIndexService : IDisposable
                 ScanDirectoryTree(root, excluded, settings.IncludeHidden, bag, ref total, progress, ct);
             }
 
-            return bag.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                      .ThenBy(e => e.FullPath, StringComparer.OrdinalIgnoreCase)
+            return bag.Where(static entry => entry is not null)
+                      .OrderBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase)
+                      .ThenBy(e => e.FullPath ?? "", StringComparer.OrdinalIgnoreCase)
                       .ToList();
         }, ct);
 
@@ -83,9 +84,16 @@ public sealed class FileIndexService : IDisposable
             if (!File.Exists(cachePath)) return false;
             var entries = JsonSerializer.Deserialize<List<FileIndexEntry>>(File.ReadAllText(cachePath));
             if (entries == null || entries.Count == 0) return false;
+            var normalized = new List<FileIndexEntry>(entries.Count);
+            foreach (var entry in entries)
+            {
+                if (NormalizeEntry(entry) is { } safe)
+                    normalized.Add(safe);
+            }
+            if (normalized.Count == 0) return false;
             lock (_gate)
             {
-                _entries = entries;
+                _entries = normalized;
                 RebuildLookupUnsafe();
                 LastIndexedUtc = File.GetLastWriteTimeUtc(cachePath);
             }
@@ -122,8 +130,11 @@ public sealed class FileIndexService : IDisposable
         bool descending = false)
     {
         options ??= new SearchOptions();
-        List<FileIndexEntry> snapshot;
-        lock (_gate) snapshot = _entries;
+        // Copia sotto il lock: i watcher aggiornano la stessa lista mentre la ricerca
+        // la enumera. Una lettura concorrente può consegnare un elemento null al
+        // predicato e far esplodere CompileQuery con NullReferenceException.
+        FileIndexEntry[] snapshot;
+        lock (_gate) snapshot = _entries.Where(static entry => entry is not null).ToArray();
 
         IEnumerable<FileIndexEntry> filtered = snapshot;
 
@@ -138,17 +149,17 @@ public sealed class FileIndexService : IDisposable
 
         IOrderedEnumerable<FileIndexEntry> sorted = (sortBy, descending) switch
         {
-            (SortField.Name, false) => filtered.OrderByDescending(e => e.IsDirectory).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            (SortField.Name, true) => filtered.OrderByDescending(e => e.IsDirectory).ThenByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            (SortField.Directory, false) => filtered.OrderBy(e => e.Directory, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            (SortField.Directory, true) => filtered.OrderByDescending(e => e.Directory, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            (SortField.Size, false) => filtered.OrderBy(e => e.IsDirectory ? -1L : e.SizeBytes).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            (SortField.Size, true) => filtered.OrderByDescending(e => e.IsDirectory ? -1L : e.SizeBytes).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
+            (SortField.Name, false) => filtered.OrderByDescending(e => e.IsDirectory).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            (SortField.Name, true) => filtered.OrderByDescending(e => e.IsDirectory).ThenByDescending(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            (SortField.Directory, false) => filtered.OrderBy(e => e.Directory ?? "", StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            (SortField.Directory, true) => filtered.OrderByDescending(e => e.Directory ?? "", StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            (SortField.Size, false) => filtered.OrderBy(e => e.IsDirectory ? -1L : e.SizeBytes).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            (SortField.Size, true) => filtered.OrderByDescending(e => e.IsDirectory ? -1L : e.SizeBytes).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
             (SortField.Modified, false) => filtered.OrderBy(e => e.ModifiedUtc),
             (SortField.Modified, true) => filtered.OrderByDescending(e => e.ModifiedUtc),
-            (SortField.Extension, false) => filtered.OrderBy(e => e.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            (SortField.Extension, true) => filtered.OrderByDescending(e => e.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            _ => filtered.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            (SortField.Extension, false) => filtered.OrderBy(e => e.Extension ?? "", StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            (SortField.Extension, true) => filtered.OrderByDescending(e => e.Extension ?? "", StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase),
+            _ => filtered.OrderBy(e => e.Name ?? "", StringComparer.OrdinalIgnoreCase)
         };
 
         return sorted.Take(Math.Max(1, options.MaxResults)).ToList();
@@ -346,12 +357,40 @@ public sealed class FileIndexService : IDisposable
     {
         QuickCategory.Folders => entry.IsDirectory,
         QuickCategory.Files => !entry.IsDirectory,
-        QuickCategory.Code => !entry.IsDirectory && CodeExtensions.Contains(entry.Extension),
-        QuickCategory.Documents => !entry.IsDirectory && DocumentExtensions.Contains(entry.Extension),
-        QuickCategory.Images => !entry.IsDirectory && ImageExtensions.Contains(entry.Extension),
-        QuickCategory.Archives => !entry.IsDirectory && ArchiveExtensions.Contains(entry.Extension),
+        QuickCategory.Code => !entry.IsDirectory && HasListedExtension(entry, CodeExtensions),
+        QuickCategory.Documents => !entry.IsDirectory && HasListedExtension(entry, DocumentExtensions),
+        QuickCategory.Images => !entry.IsDirectory && HasListedExtension(entry, ImageExtensions),
+        QuickCategory.Archives => !entry.IsDirectory && HasListedExtension(entry, ArchiveExtensions),
         _ => true
     };
+
+    private static bool HasListedExtension(FileIndexEntry entry, HashSet<string> extensions) =>
+        entry.Extension is { Length: > 0 } extension && extensions.Contains(extension);
+
+    private static FileIndexEntry? NormalizeEntry(FileIndexEntry? entry)
+    {
+        if (entry is null || string.IsNullOrWhiteSpace(entry.FullPath)) return null;
+        return entry with
+        {
+            Name = string.IsNullOrEmpty(entry.Name) ? FileNameOf(entry.FullPath) : entry.Name,
+            Directory = entry.Directory ?? DirectoryOf(entry.FullPath),
+            Extension = entry.Extension ?? ""
+        };
+    }
+
+    private static string FileNameOf(string fullPath)
+    {
+        int slash = Math.Max(fullPath.LastIndexOf('/'), fullPath.LastIndexOf('\\'));
+        return slash >= 0 && slash < fullPath.Length - 1 ? fullPath[(slash + 1)..] : fullPath;
+    }
+
+    private static string DirectoryOf(string fullPath)
+    {
+        int slash = Math.Max(fullPath.LastIndexOf('/'), fullPath.LastIndexOf('\\'));
+        return slash > 0 ? fullPath[..slash] : "";
+    }
+
+    private static string MatchText(string? value) => value ?? "";
 
     private static Func<FileIndexEntry, bool> CompileQuery(string query, SearchOptions options)
     {
@@ -364,7 +403,7 @@ public sealed class FileIndexService : IDisposable
             try
             {
                 var rx = new Regex(pattern, rxOpts);
-                return entry => rx.IsMatch(options.MatchPath ? entry.FullPath : entry.Name);
+                return entry => entry is not null && rx.IsMatch(MatchText(options.MatchPath ? entry.FullPath : entry.Name));
             }
             catch
             {
@@ -394,7 +433,7 @@ public sealed class FileIndexService : IDisposable
         if (compiledBranches.Count == 0)
             return _ => true;
 
-        return entry => compiledBranches.Any(branch => branch.All(p => p(entry)));
+        return entry => entry is not null && compiledBranches.Any(branch => branch.All(p => p(entry)));
     }
 
     private static List<string> Tokenize(string input)
@@ -436,10 +475,10 @@ public sealed class FileIndexService : IDisposable
     {
         if (token.Equals("folder:", StringComparison.OrdinalIgnoreCase) ||
             token.Equals("dir:", StringComparison.OrdinalIgnoreCase))
-            return e => e.IsDirectory;
+            return e => e is not null && e.IsDirectory;
 
         if (token.Equals("file:", StringComparison.OrdinalIgnoreCase))
-            return e => !e.IsDirectory;
+            return e => e is not null && !e.IsDirectory;
 
         if (token.StartsWith("ext:", StringComparison.OrdinalIgnoreCase))
         {
@@ -447,24 +486,24 @@ public sealed class FileIndexService : IDisposable
                 .Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(x => x.StartsWith('.') ? x : "." + x)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            return e => !e.IsDirectory && exts.Contains(e.Extension);
+            return e => e is not null && !e.IsDirectory && HasListedExtension(e, exts);
         }
 
         if (token.StartsWith("size:", StringComparison.OrdinalIgnoreCase))
         {
             string expr = token[5..].Trim();
             if (TryParseSizeFilter(expr, out bool greaterThan, out long thresholdBytes))
-                return e => !e.IsDirectory && (greaterThan ? e.SizeBytes >= thresholdBytes : e.SizeBytes <= thresholdBytes);
+                return e => e is not null && !e.IsDirectory && (greaterThan ? e.SizeBytes >= thresholdBytes : e.SizeBytes <= thresholdBytes);
         }
 
         if (token.Contains('*') || token.Contains('?'))
         {
             string pattern = "^" + Regex.Escape(token).Replace("\\*", ".*").Replace("\\?", ".") + "$";
             var rx = new Regex(pattern, rxOpts);
-            return e => rx.IsMatch(matchPath ? e.FullPath : e.Name);
+            return e => e is not null && rx.IsMatch(MatchText(matchPath ? e.FullPath : e.Name));
         }
 
-        return e => (matchPath ? e.FullPath : e.Name).Contains(token, cmp);
+        return e => e is not null && MatchText(matchPath ? e.FullPath : e.Name).Contains(token, cmp);
     }
 
     private static bool TryParseSizeFilter(string expr, out bool greaterThan, out long bytes)

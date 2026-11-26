@@ -19,8 +19,17 @@ public sealed partial class MainForm
         }
 
         string currentVer = "v" + (typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? "2.6.0");
-        var release = await CloudUpdateService.CheckForUpdatesAsync(_settings.GitHubRepo, currentVer, _settings.IncludePreReleases);
+        var check = await CloudUpdateService.CheckForUpdatesAsync(_settings.GitHubRepo, currentVer, _settings.IncludePreReleases);
+        if (check.NotFound)
+        {
+            _infoBar.ShowMessage(
+                $"{check.Error} Quello della suite è {LauncherSettings.DefaultGitHubRepo} (Impostazioni → Aggiornamenti cloud).",
+                InfoBarControl.BarType.Error,
+                _theme);
+            return;
+        }
 
+        var release = check.Release;
         if (release != null && release.IsUpdateAvailable)
         {
             _settings.LastCloudCheckUtc = DateTime.UtcNow;
@@ -62,6 +71,10 @@ public sealed partial class MainForm
                 flyout.SetError($"Update failed: {result.Message}");
                 _infoBar.ShowMessage(result.Message, InfoBarControl.BarType.Error, _theme);
             }
+        }
+        else if (manual && check.Error is not null)
+        {
+            _infoBar.ShowMessage(check.Error, InfoBarControl.BarType.Error, _theme);
         }
         else if (manual)
         {
