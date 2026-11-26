@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NoreaDesign\NoreaDesign.csproj" />
+    <Content Include="..\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

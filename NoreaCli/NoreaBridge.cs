@@ -128,7 +128,7 @@ public static class NoreaBridge
         }
     }
 
-    public static bool NotifyLauncher(string appName, string message, string oldVersion = "v2.1.0", string newVersion = "v2.2.0")
+    public static bool NotifyLauncher(string appName, string message, string oldVersion = "", string newVersion = "")
     {
         var exe = FindExecutable("NoreaLauncher");
         if (exe == null) return false;

@@ -81,6 +81,11 @@ jobs:
           ref: ${{ steps.rel.outputs.tag }}
           fetch-depth: 0
 
+      - name: Generate changelog
+        shell: pwsh
+        run: |
+          ./tools/New-ReleaseNotes.ps1 -Tag ${{ steps.rel.outputs.tag }} -NotesPath release-notes.md
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -130,9 +135,12 @@ jobs:
           draft: false
           prerelease: false
           make_latest: ${{ (github.event_name != 'workflow_dispatch' || inputs.mark_as_latest) && 'true' || 'false' }}
-          generate_release_notes: true
+          generate_release_notes: false
+          body_path: release-notes.md
           files: |
             NOREA_Suite_Portable.zip
             checksums.txt
+            CHANGELOG.md
+            release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -109,13 +109,14 @@ public sealed partial class MainForm
 
     public void ShowUpdateFlyoutDemo()
     {
+        var notes = ReleaseNotes.LatestPair(ReleaseNotes.Load());
         var flyout = new UpdateNotificationFlyout(
-            appName: "NotepadREA",
-            oldVersion: "v2.1.0",
-            newVersion: "v2.2.0",
+            appName: "NOREA",
+            oldVersion: notes.Previous,
+            newVersion: notes.Current,
             author: "by NOREA",
             changelogUrl: "https://github.com/chrisquire80/REA/releases",
-            changelogText: "Novità v2.2.0:\n- Terminale PowerShell integrato (F12)\n- Gutter Git Diff\n- Ispezione Esadecimale (Ctrl+Alt+H)\n- Flyout notifica aggiornamenti",
+            changelogText: notes.Body,
             appIcon: Icon,
             accentColor: Color.FromArgb(197, 22, 45));
 

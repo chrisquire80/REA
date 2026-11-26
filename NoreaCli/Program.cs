@@ -171,8 +171,8 @@ static class Program
 
         string app = args[0];
         string msg = args.Length > 1 && !args[1].StartsWith('-') ? args[1] : "Operazione completata con successo!";
-        string oldVer = "v2.1.0";
-        string newVer = "v2.2.0";
+        string oldVer = "";
+        string newVer = "";
 
         for (int i = 0; i < args.Length; i++)
         {

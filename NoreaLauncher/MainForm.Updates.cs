@@ -235,7 +235,13 @@ public sealed partial class MainForm
         _infoBar.ShowMessage($"Installazione di {app.DisplayName} in corso...", InfoBarControl.BarType.Info, _theme);
 
         string oldVer = app.Version;
-        string newVer = "v2.2.0";
+        string loadedNotes = ReleaseNotes.Load();
+        string newVer = string.IsNullOrWhiteSpace(ReleaseNotes.ForVersion(loadedNotes, app.Version))
+            ? ReleaseNotes.LatestPair(loadedNotes).Current
+            : app.Version;
+        if (string.IsNullOrWhiteSpace(newVer)) newVer = app.Version;
+        string changelog = ReleaseNotes.ForVersion(loadedNotes, newVer);
+        if (string.IsNullOrWhiteSpace(changelog)) changelog = ReleaseNotes.LatestPair(loadedNotes).Body;
         var flyout = new UpdateNotificationFlyout(
             appName: app.DisplayName,
             oldVersion: oldVer,
@@ -244,6 +250,7 @@ public sealed partial class MainForm
                 ? "by " + app.AuthorBadge[3..] 
                 : app.AuthorBadge,
             changelogUrl: "https://github.com/chrisquire80/REA/releases",
+            changelogText: changelog,
             appIcon: Icon,
             accentColor: Color.FromArgb(197, 22, 45));
 

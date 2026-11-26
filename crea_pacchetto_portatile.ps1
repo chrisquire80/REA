@@ -38,6 +38,8 @@ Copy-Item "$root\LICENSE" -Destination "$outDir\" -Force
 Copy-Item "$root\THIRD_PARTY_NOTICES.md" -Destination "$outDir\" -Force
 Copy-Item "$root\ANALISI_WINSCP_REA.md" -Destination "$outDir\" -Force
 Copy-Item "$root\ANALISI_EVERYTHING_REA.md" -Destination "$outDir\" -Force
+Copy-Item "$root\CHANGELOG.md" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
+Copy-Item "$root\docs\TELEMETRIA.md" -Destination "$outDir\" -Force -ErrorAction SilentlyContinue
 
 $readmeContent = @"
 ==================================================
