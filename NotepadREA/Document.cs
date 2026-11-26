@@ -429,8 +429,8 @@ public sealed class Document : UserControl
         bool sameTrackedFile = FilePath != null &&
             string.Equals(fullPath, FilePath, StringComparison.OrdinalIgnoreCase);
         bool fileExists = File.Exists(fullPath);
-        bool hasSnapshot = _diskSnapshot is { } snapshot;
-        bool snapshotChanged = fileExists && hasSnapshot && snapshot.HasChanged(fullPath);
+        bool hasSnapshot = _diskSnapshot is not null;
+        bool snapshotChanged = fileExists && _diskSnapshot is { } snapshot && snapshot.HasChanged(fullPath);
         if (EditorFileSession.ShouldRejectSave(sameTrackedFile, overwriteExternalChanges, fileExists, hasSnapshot, snapshotChanged))
             throw new ExternalFileChangedException(fullPath);
 
