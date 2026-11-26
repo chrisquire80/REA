@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using NoreaLauncher;
@@ -149,6 +150,45 @@ public class CloudUpdateServiceTests
         }
     }
 
+    [Fact]
+    public async Task CheckForUpdates_PublicRepoShape_ReadsTheReleaseWithoutCredentials()
+    {
+        string? requested = null;
+        string? userAgent = null;
+        var handler = new StatusHandler(HttpStatusCode.OK, """
+            [{"tag_name":"v2.6.0","name":"NOREA Suite v2.6.0","body":"note","html_url":"https://github.com/chrisquire80/REA/releases/tag/v2.6.0","prerelease":false,"published_at":"2026-11-26T00:00:00Z","assets":[]}]
+            """, request =>
+        {
+            requested = request.RequestUri?.AbsoluteUri;
+            userAgent = request.Headers.UserAgent.ToString();
+        });
+        using var client = new HttpClient(handler);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("NoreaLauncher-CloudUpdate/1.0");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.v3+json");
+        var check = await CloudUpdateService.CheckForUpdatesAsync("chrisquire80/REA", "v2.5.0", httpClient: client);
+
+        Assert.True(check.Succeeded);
+        Assert.False(check.NotFound);
+        Assert.Equal("https://api.github.com/repos/chrisquire80/REA/releases", requested);
+        Assert.Equal("NoreaLauncher-CloudUpdate/1.0", userAgent);
+        Assert.NotNull(check.Release);
+        Assert.True(check.Release.IsUpdateAvailable);
+        Assert.Equal("v2.6.0", check.Release.RemoteVersion);
+    }
+
+    [Fact]
+    public async Task CheckForUpdates_MissingRepo_ReportsHttp404()
+    {
+        using var client = new HttpClient(new StatusHandler(HttpStatusCode.NotFound, """{"message":"Not Found"}"""));
+        var check = await CloudUpdateService.CheckForUpdatesAsync("ChristianRobecchi/REA", "v2.6.0", httpClient: client);
+
+        Assert.True(check.NotFound);
+        Assert.Equal(404, check.StatusCode);
+        Assert.Null(check.Release);
+        Assert.Contains("HTTP 404", check.Error, StringComparison.Ordinal);
+        Assert.Contains("ChristianRobecchi/REA", check.Error, StringComparison.Ordinal);
+    }
+
     private static byte[] CreateArchiveBytes(params (string Path, string Content)[] files)
     {
         using var stream = new MemoryStream();
@@ -161,6 +201,19 @@ public class CloudUpdateServiceTests
             }
         }
         return stream.ToArray();
+    }
+
+    private sealed class StatusHandler(HttpStatusCode status, string body, Action<HttpRequestMessage>? onRequest = null) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            onRequest?.Invoke(request);
+            return Task.FromResult(new HttpResponseMessage(status)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                RequestMessage = request
+            });
+        }
     }
 
     private sealed class ArchiveHandler(byte[] archive) : HttpMessageHandler

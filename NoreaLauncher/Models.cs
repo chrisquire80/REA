@@ -98,7 +98,15 @@ public sealed class LauncherSettings
     public bool AskPermissionOnce { get; set; }
     public bool NotifyUpdates { get; set; } = true;
     public bool IncludePreReleases { get; set; } = true;
-    public string GitHubRepo { get; set; } = "chrisquire80/REA";
+    public const string DefaultGitHubRepo = "chrisquire80/REA";
+
+    /// <summary>
+    /// Il primo client aggiornamenti salvava questo nome, che non è l'account GitHub.
+    /// api.github.com risponde 404.
+    /// </summary>
+    public const string RetiredGitHubRepo = "ChristianRobecchi/REA";
+
+    public string GitHubRepo { get; set; } = DefaultGitHubRepo;
     public bool CheckCloudUpdatesOnStartup { get; set; } = true;
 
     /// <summary>
@@ -149,7 +157,25 @@ public sealed class LauncherSettings
         if (string.IsNullOrWhiteSpace(s.WorkspaceDir) || !Directory.Exists(s.WorkspaceDir))
             s.WorkspaceDir = DetectWorkspaceDir();
 
+        string repo = NormalizeGitHubRepo(s.GitHubRepo);
+        if (!string.Equals(repo, s.GitHubRepo, StringComparison.Ordinal))
+        {
+            s.GitHubRepo = repo;
+            if (File.Exists(path))
+                s.Save(path);
+        }
+
         return s;
+    }
+
+    public static bool IsRetiredGitHubRepo(string? repo) =>
+        string.Equals(repo?.Trim(), RetiredGitHubRepo, StringComparison.OrdinalIgnoreCase);
+
+    public static string NormalizeGitHubRepo(string? repo)
+    {
+        if (string.IsNullOrWhiteSpace(repo) || IsRetiredGitHubRepo(repo))
+            return DefaultGitHubRepo;
+        return repo.Trim();
     }
 
     public void Save(string? settingsFilePath = null)

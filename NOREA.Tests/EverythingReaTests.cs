@@ -112,4 +112,72 @@ public class EverythingReaTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void Search_NullCacheFields_DoesNotThrowFromCompileQuery()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"everything-null-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        string cachePath = Path.Combine(root, "index.json");
+        File.WriteAllText(cachePath, """
+            [
+              null,
+              {"Name":null,"Directory":null,"FullPath":null,"IsDirectory":false,"SizeBytes":1,"ModifiedUtc":"2026-01-01T00:00:00Z","Extension":null},
+              {"Name":null,"Directory":null,"FullPath":"C:\\data\\ok.txt","IsDirectory":false,"SizeBytes":4,"ModifiedUtc":"2026-01-01T00:00:00Z","Extension":null}
+            ]
+            """);
+        string? previous = Environment.GetEnvironmentVariable("EVERYTHINGREA_CACHE_PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("EVERYTHINGREA_CACHE_PATH", cachePath);
+            using var index = new FileIndexService();
+            Assert.True(index.LoadCache());
+
+            Assert.Contains(index.Search("ok", sortBy: SortField.Extension), entry => entry.Name == "ok.txt");
+            Assert.Contains(index.Search("!missing"), entry => entry.Name == "ok.txt");
+            Assert.Contains(index.Search("file:"), entry => entry.Name == "ok.txt");
+            Assert.Contains(index.Search("*.txt"), entry => entry.Name == "ok.txt");
+            Assert.Contains(index.Search("size:>0"), entry => entry.Name == "ok.txt");
+            Assert.Contains(index.Search("regex:ok"), entry => entry.Name == "ok.txt");
+            Assert.Empty(index.Search("ext:txt"));
+
+            var code = index.Search("", new SearchOptions(Category: QuickCategory.Code));
+            Assert.DoesNotContain(code, entry => entry.Name == "ok.txt");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("EVERYTHINGREA_CACHE_PATH", previous);
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Search_DuringRebuild_DoesNotThrow()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"everything-race-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        for (int i = 0; i < 40; i++)
+            File.WriteAllText(Path.Combine(root, $"file-{i:D2}.txt"), "x");
+
+        try
+        {
+            using var index = new FileIndexService();
+            var settings = new EverythingSettings { IndexedRoots = [root], WatchFileSystem = false };
+            var searching = Task.Run(() =>
+            {
+                for (int i = 0; i < 30; i++)
+                {
+                    index.Search("file !missing ext:txt *.txt size:>0");
+                    index.Search("regex:file", new SearchOptions(UseRegex: true));
+                }
+            });
+            await index.RebuildIndexAsync(settings);
+            await searching;
+            Assert.Contains(index.Search("file-01"), entry => entry.Name == "file-01.txt");
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }

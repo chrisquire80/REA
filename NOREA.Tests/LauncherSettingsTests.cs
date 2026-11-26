@@ -53,6 +53,34 @@ public class LauncherSettingsTests
     }
 
     [Fact]
+    public void Settings_Load_RepairsRetiredGitHubRepoAndKeepsACustomOne()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"norea-settings-test-{Guid.NewGuid():N}");
+        string path = Path.Combine(root, "launcher_settings.json");
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(path, """{"GitHubRepo":"ChristianRobecchi/REA","Appearance":"Light"}""");
+            var repaired = LauncherSettings.Load(path);
+            Assert.Equal(LauncherSettings.DefaultGitHubRepo, repaired.GitHubRepo);
+            Assert.Equal("Light", repaired.Appearance);
+            Assert.Contains(LauncherSettings.DefaultGitHubRepo, File.ReadAllText(path), StringComparison.Ordinal);
+            Assert.DoesNotContain("ChristianRobecchi/REA", File.ReadAllText(path), StringComparison.Ordinal);
+
+            File.WriteAllText(path, """{"GitHubRepo":"CHRISTIANROBECCHI/rea"}""");
+            Assert.Equal(LauncherSettings.DefaultGitHubRepo, LauncherSettings.Load(path).GitHubRepo);
+
+            File.WriteAllText(path, """{"GitHubRepo":"other/kept"}""");
+            Assert.Equal("other/kept", LauncherSettings.Load(path).GitHubRepo);
+            Assert.Contains("other/kept", File.ReadAllText(path), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Settings_Load_PreservesMalformedFileBeforeUsingDefaults()
     {
         string root = Path.Combine(Path.GetTempPath(), $"norea-settings-test-{Guid.NewGuid():N}");

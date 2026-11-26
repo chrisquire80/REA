@@ -18,6 +18,12 @@ public sealed record CloudReleaseInfo(
 
 public sealed record UpdateApplyResult(bool Success, string Message, bool RestartRequired = false);
 
+public sealed record CloudUpdateCheck(CloudReleaseInfo? Release, int? StatusCode, string? Error)
+{
+    public bool NotFound => StatusCode == 404;
+    public bool Succeeded => Error is null;
+}
+
 public static class CloudUpdateService
 {
     private static readonly HttpClient Http = new()
@@ -35,24 +41,36 @@ public static class CloudUpdateService
         Http.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
     }
 
-    public static async Task<CloudReleaseInfo?> CheckForUpdatesAsync(string repo, string currentVersion, bool includePreRelease = false)
+    public static async Task<CloudUpdateCheck> CheckForUpdatesAsync(
+        string repo,
+        string currentVersion,
+        bool includePreRelease = false,
+        HttpClient? httpClient = null)
     {
         if (string.IsNullOrWhiteSpace(repo) || !repo.Contains('/'))
-            return null;
+            return new CloudUpdateCheck(null, null, "Repository GitHub non valido.");
 
         try
         {
             string url = $"https://api.github.com/repos/{repo.Trim()}/releases";
-            using var response = await Http.GetAsync(url);
+            httpClient ??= Http;
+            using var response = await httpClient.GetAsync(url);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                string message = $"Il repository GitHub \"{repo.Trim()}\" non esiste o non è pubblico (HTTP 404).";
+                Log.Warn(message);
+                return new CloudUpdateCheck(null, 404, message);
+            }
             if (!response.IsSuccessStatusCode)
             {
                 Log.Warn($"Verifica aggiornamenti cloud fallita: HTTP {response.StatusCode}");
-                return null;
+                return new CloudUpdateCheck(null, (int)response.StatusCode, $"Verifica aggiornamenti non riuscita: HTTP {(int)response.StatusCode}.");
             }
 
             string json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return new CloudUpdateCheck(null, 200, "Risposta GitHub non valida.");
 
             foreach (var rel in doc.RootElement.EnumerateArray())
             {
@@ -92,7 +110,7 @@ public static class CloudUpdateService
                 string normalizedLocal = LauncherUtil.NormalizeVersion(currentVersion);
                 bool isNewer = LauncherUtil.CompareVersions(normalizedRemote, normalizedLocal) > 0;
 
-                return new CloudReleaseInfo(
+                return new CloudUpdateCheck(new CloudReleaseInfo(
                     IsUpdateAvailable: isNewer,
                     RemoteVersion: normalizedRemote,
                     CurrentVersion: normalizedLocal,
@@ -102,15 +120,16 @@ public static class CloudUpdateService
                     AssetSizeBytes: assetSize,
                     ReleasePageUrl: htmlUrl,
                     PublishedAt: pubDate,
-                    AssetSha256: assetSha256);
+                    AssetSha256: assetSha256), 200, null);
             }
         }
         catch (Exception ex)
         {
             Log.Warn("Errore durante la verifica aggiornamenti cloud", ex);
+            return new CloudUpdateCheck(null, null, "Verifica aggiornamenti non riuscita.");
         }
 
-        return null;
+        return new CloudUpdateCheck(null, 200, null);
     }
 
     public static async Task<UpdateApplyResult> DownloadAndApplyUpdateAsync(
