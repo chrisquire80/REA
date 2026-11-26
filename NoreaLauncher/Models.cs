@@ -76,8 +76,10 @@ public sealed class AppEntry
     [JsonIgnore] public bool IsCanary => Version.Contains('-') || Version.StartsWith("v0.", StringComparison.OrdinalIgnoreCase);
     [JsonIgnore] public bool HasUpdate =>
         IsInstalled && HasDistBuild &&
-        (LauncherUtil.CompareVersions(Version, "v0.0.0") >= 0 &&
-         File.GetLastWriteTimeUtc(DistExePath!) > File.GetLastWriteTimeUtc(InstalledExePath!).AddSeconds(5));
+        CatalogPolicy.HasDistUpdate(
+            Version,
+            File.GetLastWriteTimeUtc(DistExePath!),
+            File.GetLastWriteTimeUtc(InstalledExePath!));
 
     [JsonIgnore] public bool IsRunning { get; set; }
     [JsonIgnore] public int? RunningPid { get; set; }

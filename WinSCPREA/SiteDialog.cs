@@ -174,53 +174,30 @@ internal sealed class SiteDialog : Form
 
     private void ValidateAndAccept()
     {
-        string host = _host.Text.Trim();
-        string username = _username.Text.Trim();
         bool useKey = _authentication.SelectedIndex == 1;
-        if (host.Length == 0 || username.Length == 0)
+        var validation = SftpConnectionFlow.Validate(
+            _name.Text,
+            _host.Text,
+            decimal.ToInt32(_port.Value),
+            _username.Text,
+            _remoteDirectory.Text,
+            useKey,
+            _password.Text,
+            _keyPath.Text,
+            _keyPassphrase.Text);
+        if (!validation.Accepted || validation.Request is null)
         {
-            MessageBox.Show(this, "Inserisci il server e il nome utente.", "Dati mancanti", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, validation.ErrorMessage ?? "", validation.ErrorTitle ?? "", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        if (useKey && !File.Exists(_keyPath.Text.Trim()))
-        {
-            MessageBox.Show(this, "Seleziona un file di chiave privata SSH esistente.", "Chiave non trovata", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-        if (!useKey && _password.Text.Length == 0)
-        {
-            MessageBox.Show(this, "Inserisci la password per continuare.", "Password richiesta", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        var site = new SiteProfile
-        {
-            Name = string.IsNullOrWhiteSpace(_name.Text) ? $"{username}@{host}" : _name.Text.Trim(),
-            Host = host,
-            Port = decimal.ToInt32(_port.Value),
-            Username = username,
-            RemoteDirectory = string.IsNullOrWhiteSpace(_remoteDirectory.Text) ? "/" : _remoteDirectory.Text.Trim(),
-            Authentication = useKey ? "PrivateKey" : "Password",
-            PrivateKeyPath = useKey ? _keyPath.Text.Trim() : ""
-        };
 
         if (_saveSite.Checked)
         {
-            var existing = _settings.Sites.FirstOrDefault(x => x.Name.Equals(site.Name, StringComparison.OrdinalIgnoreCase));
-            if (existing is null) _settings.Sites.Add(site);
-            else
-            {
-                existing.Host = site.Host;
-                existing.Port = site.Port;
-                existing.Username = site.Username;
-                existing.RemoteDirectory = site.RemoteDirectory;
-                existing.Authentication = site.Authentication;
-                existing.PrivateKeyPath = site.PrivateKeyPath;
-            }
+            SftpConnectionFlow.UpsertSavedSite(_settings.Sites, validation.Request.Site);
             _settings.Save();
         }
 
-        Request = new ConnectionRequest(site, useKey ? "" : _password.Text, useKey ? _keyPassphrase.Text : "");
+        Request = validation.Request;
         DialogResult = DialogResult.OK;
         Close();
     }

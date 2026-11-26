@@ -309,18 +309,14 @@ public sealed class MainForm : Form
     private void ExecuteSearch()
     {
         var sw = Stopwatch.StartNew();
-        var options = new SearchOptions(
-            MatchCase: _chkCase.Checked,
-            MatchPath: _chkPath.Checked,
-            UseRegex: _chkRegex.Checked,
-            Category: _category);
+        var options = SearchSession.CreateOptions(_chkCase.Checked, _chkPath.Checked, _chkRegex.Checked, _category);
 
         _results = _indexService.Search(_searchBox.Text, options, _sortBy, _sortDescending);
         _listView.VirtualListSize = _results.Count;
         _listView.Invalidate();
         sw.Stop();
 
-        _statusLabel.Text = $"{_results.Count:N0} risultati su {_indexService.Count:N0} elementi · {sw.ElapsedMilliseconds} ms";
+        _statusLabel.Text = SearchSession.FormatStatus(_results.Count, _indexService.Count, sw.ElapsedMilliseconds);
     }
 
     private void OnRetrieveVirtualItem(object? sender, RetrieveVirtualItemEventArgs e)
@@ -332,7 +328,7 @@ public sealed class MainForm : Form
         }
 
         var entry = _results[e.ItemIndex];
-        string sizeText = entry.IsDirectory ? "<DIR>" : FormatSize(entry.SizeBytes);
+        string sizeText = entry.IsDirectory ? "<DIR>" : SearchSession.FormatSize(entry.SizeBytes);
         string dateText = entry.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
         string typeText = entry.IsDirectory ? "Cartella" : (string.IsNullOrEmpty(entry.Extension) ? "File" : entry.Extension.TrimStart('.').ToUpperInvariant());
 
@@ -341,18 +337,7 @@ public sealed class MainForm : Form
 
     private void OnColumnClick(object? sender, ColumnClickEventArgs e)
     {
-        SortField clicked = e.Column switch
-        {
-            0 => SortField.Name,
-            1 => SortField.Directory,
-            2 => SortField.Size,
-            3 => SortField.Modified,
-            4 => SortField.Extension,
-            _ => SortField.Name
-        };
-
-        if (_sortBy == clicked) _sortDescending = !_sortDescending;
-        else { _sortBy = clicked; _sortDescending = false; }
+        (_sortBy, _sortDescending) = SearchSession.ToggleSort(_sortBy, _sortDescending, e.Column);
 
         ExecuteSearch();
     }
@@ -504,14 +489,6 @@ public sealed class MainForm : Form
                 await RebuildIndexAsync();
             }
         }
-    }
-
-    private static string FormatSize(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
-        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024d * 1024):0.##} MB";
-        return $"{bytes / (1024d * 1024 * 1024):0.##} GB";
     }
 
     private sealed class VirtualListView : ListView

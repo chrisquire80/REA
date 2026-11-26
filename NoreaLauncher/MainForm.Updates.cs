@@ -10,6 +10,9 @@ public sealed partial class MainForm
 {
     async Task CheckCloudUpdatesAsync(bool manual = false)
     {
+        if (!CatalogPolicy.ShouldCheckCloudUpdates(manual, _settings.CheckCloudUpdatesOnStartup))
+            return;
+
         if (manual)
         {
             _infoBar.ShowMessage("Verifica disponibilità aggiornamenti su GitHub...", InfoBarControl.BarType.Info, _theme);
